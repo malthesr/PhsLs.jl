@@ -28,47 +28,47 @@ end
 n(sum::Sum{T}) where {T} = sum.n
 total(sum::Sum{T}) where {T} = sum.total
 
-struct EStep{C}
-    clusterallele::Vector{ClusterAlleleExpect{C}}
-    jumpcluster::Vector{JumpClusterExpect{C}}
+struct EStep{A<:Arr{Float64}, M<:Mat{Float64}}
+    clusterallele::A
+    jumpcluster::M
     loglik::Float64
 end
 
-function Base.:+(x::EStep{C}, y::EStep{C})  where {C}
+function Base.:+(x::EStep{A, M}, y::EStep{A, M}) where {A, M}
     @assert(length(x.clusterallele) == length(y.clusterallele))
     @assert(length(x.jumpcluster) == length(y.jumpcluster))
     clusterallele = x.clusterallele .+ y.clusterallele
     jumpcluster = x.jumpcluster .+ y.jumpcluster
     loglik = x.loglik + y.loglik
-    EStep{C}(clusterallele, jumpcluster, loglik)
+    EStep(clusterallele, jumpcluster, loglik)
 end
 
-function estep(gl::Vec{Gl}, par::Par{C}) where {C}
+function estep(gl::Vec{Gl}, par::Par)
     ab = FwdBwd(gl, par)
     clusterallele = clusteralleleexpect(gl, ab, par)
     jumpcluster = jumpclusterexpect(gl, ab, par)
     loglik = loglikelihood(ab)
-    EStep{C}(clusterallele, jumpcluster, loglik)
+    EStep(clusterallele, jumpcluster, loglik)
 end
 
-function estep(gl::Mat{Gl}, par::Par{C}) where {C}
+function estep(gl::Mat{Gl}, par::Par)
     parmapreduce(gl -> Sum(estep(gl, par)), +, eachind(gl))
 end
 
-function mstep(expect::Sum{EStep{C}}) where {C}
+function mstep(expect::Sum{EStep{A, M}}) where {A, M}
     I = n(expect)
     expect = total(expect)
-    allelefreqs = map(e -> e[:, 2] ./ rowsum(e), expect.clusterallele)
-    jumpclusterfreqs = map(norm, expect.jumpcluster)
-    stayfreqs = [0.; 1 .- map(sum, expect.jumpcluster[2:end]) ./ I]
-    newpar = Par{C}(allelefreqs, jumpclusterfreqs, stayfreqs)
+    allelefreqs = expect.clusterallele[:, :, 2] ./ sumdrop(expect.clusterallele, dims=3)
+    jumpclusterfreqs = norm(expect.jumpcluster; dims=2)
+    stayfreqs = [0.; 1 .- rowsum(expect.jumpcluster[2:end, :]) ./ I]
+    newpar = Par(allelefreqs, jumpclusterfreqs, stayfreqs)
     protect!(newpar)
     (expect.loglik, newpar)
 end
 
-emstep(gl::Mat{Gl}, par::Par{C}) where {C} = mstep(estep(gl, par))
+emstep(gl::Mat{Gl}, par::Par) = mstep(estep(gl, par))
 
-function em(gl::Mat{Gl}, par::Par{C}; tol=1e-4, maxiter=100) where {C}
+function em(gl::Mat{Gl}, par::Par; tol=1e-4, maxiter=100)
     oldloglik = -Inf
     change = Inf
     iter = 0

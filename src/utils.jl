@@ -1,10 +1,9 @@
 module Utils
 
-using StaticArrays: SMatrix, SVector
 using Transducers: foldxt, Map
 
-export norm, norm!, cnorm, allsame, outer, symouter, colsum, rowsum, 
-    parmapreduce
+export norm, norm!, cnorm, allsame, outer, symouter, 
+    colsum, rowsum, sumdrop, parmapreduce
 
 allsame(x) = all(y -> y == first(x), x)
 
@@ -12,8 +11,8 @@ norm(x; kwargs...) = x ./ sum(x; kwargs...)
 function norm!(x; kwargs...)
     x[:] /= sum(x; kwargs...)
 end
-function cnorm(x; kwargs...) 
-    c = sum(x; kwargs...)
+function cnorm(x)
+    c = sum(x)
     (c, x ./ c)
 end
 
@@ -24,9 +23,8 @@ symouter(f, x, y) = outer(f, x, y) .+ transpose(outer(f, x, y))
 symouter(x, y) = symouter(*, x, y)
 
 sumdrop(x; dims) = dropdims(sum(x, dims=dims), dims=dims)
-colsum(x) = sumdrop(x, dims=1)
-rowsum(x) = sumdrop(x, dims=2)
-rowsum(x::SMatrix) = SVector(sum(x, dims=2))
+colsum(x::AbstractMatrix{Float64})::Vector{Float64} = sumdrop(x, dims=1)
+rowsum(x::AbstractMatrix{Float64})::Vector{Float64} = sumdrop(x, dims=2)
 
 parmapreduce(f, op, it) = foldxt(op, it |> Map(f))
 

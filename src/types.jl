@@ -62,37 +62,15 @@ ind(gl::Mat{Gl}, i::Int) = view(gl, i, :)
 eachsite(gl::Mat{Gl}) = eachcol(gl)
 eachind(gl::Mat{Gl}) = eachrow(gl)
 
-struct ClusterException <: Exception end
+const Cluster = UInt8
 
-struct Cluster{C}
-    cluster::UInt8
-
-    (::Type{Cluster{C}})(cluster::UInt8) where {C} = 
-        cluster > 0 && cluster <= C ? new{C}(cluster) : throw(ClusterException)
-    (::Type{Cluster{C}})(cluster::Integer) where {C} = 
-        Cluster{C}(UInt8(cluster))
+struct Z <: AbstractVector{Cluster}
+    clusters::SVector{2, Cluster}
 end
 
-Base.parent(c::Cluster{C}) where {C} = c.cluster
-@generated function clusters(::Val{C}) where {C}
-    :(SVector{C}(Cluster{C}.(1:C)))
-end
-
-Base.to_index(xs::AbstractArray, c::Cluster{C}) where {C} = 
-    Base.to_index(xs, parent(c))
-
-struct Z{C} <: AbstractVector{Cluster{C}}
-    clusters::SVector{2, Cluster{C}}
-
-    (::Type{Z{C}})(c::SVector{2, Cluster{C}}) where {C} = 
-        new{C}(c) 
-    (::Type{Z{C}})(a::Cluster{C}, b::Cluster{C}) where {C} = 
-        Z{C}(SVector(a, b)) 
-    (::Type{Z{C}})(x::Tuple{Cluster{C}, Cluster{C}}) where {C} = 
-        Z{C}(x[1], x[2]) 
-    (::Type{Z{C}})(a::Integer, b::Integer) where {C} = 
-        Z{C}(Cluster{C}(a), Cluster{C}(b))
-end
+Z(a::Cluster, b::Cluster) = Z(SVector(a, b)) 
+Z(x::Tuple{Cluster, Cluster}) = Z(x[1], x[2]) 
+Z(a::Integer, b::Integer) = Z(Cluster(a), Cluster(b))
 
 Base.parent(z::Z) = z.clusters
 Base.size(z::Z) = size(parent(z))
@@ -101,11 +79,11 @@ Base.length(z::Z) = 3
 Base.iterate(z::Z) = iterate(parent(z))
 Base.IndexStyle(::Type{Z}) = IndexLinear()
 
-@generated function zs(::Val{C}) where {C}
-    :(
-        it = clusters(Val(C));
-        map(Z{C}, SMatrix(collect(product(it, it))))
-    )
+clusters(C::Int) = map(Cluster, 1:C)
+
+function zs(C::Int)
+    it = clusters(C);
+    map(Z, product(it, it))
 end
 
 end

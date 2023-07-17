@@ -1,7 +1,5 @@
 module Parameters
 
-import StaticArrays: SVector, SMatrix, Size
-
 using ..Utils
 using ..Types
 
@@ -10,63 +8,53 @@ export Par, ParSite, AlleleFreqs, JumpClusterFreqs, StayFreq,
 
 struct ParameterException <: Exception end
 
-const AlleleFreqs{C} = SVector{C, Float64}
-const JumpClusterFreqs{C} = SVector{C, Float64}
-const StayFreq = Float64
-
-struct Par{C}
-    allelefreqs::Vector{AlleleFreqs}
-    jumpclusterfreqs::Vector{JumpClusterFreqs}
-    stayfreqs::Vector{StayFreq}
-
-    function (::Type{Par{C}})(af, jcf, sf) where {C} 
-        if allsame(map(length, [af, jcf, sf]))
-            new{C}(af, jcf, sf) 
-        else
-            throw(ParameterException)
-        end
-    end
+struct Par{M<:Mat{Float64}, V<:Vec{Float64}}
+    allelefreqs::M
+    jumpclusterfreqs::M
+    stayfreqs::V
 end
 
-Base.getindex(par::Par{C}, s::Int) where {C} = 
-    ParSite{C}(par.allelefreqs[s], par.jumpclusterfreqs[s], par.stayfreqs[s])
-
-Types.sites(par::Par{C}) where {C} = length(par.stayfreqs)
-Types.eachsite(par::Par{C}) where {C} = map(s -> par[s], 1:sites(par))
-
-struct ParSite{C}
-    allelefreqs::AlleleFreqs
-    jumpclusterfreqs::JumpClusterFreqs
-    stayfreq::StayFreq
-
-    function (::Type{ParSite{C}})(af, jcf, sf) where {C}
-         new{C}(af, jcf, sf) 
-    end
+function Base.getindex(par::Par, s::Int)
+    ParSite(
+        view(par.allelefreqs, s, :),
+        view(par.jumpclusterfreqs, s, :),
+        par.stayfreqs[s]
+    )
 end
 
-allelefreqs(par::ParSite{C}) where {C} = par.allelefreqs
-jumpclusterfreqs(par::ParSite{C}) where {C} = par.jumpclusterfreqs
-stayfreq(par::ParSite{C}) where {C} = par.stayfreq
+Base.size(par::Par) = size(par.allelefreqs)
+Types.sites(par::Par) = size(par.allelefreqs, 1)
+Types.eachsite(par::Par) = map(s -> par[s], 1:sites(par))
 
-function parinit(::Val{C}, positions; scaling=1e6) where {C}
+struct ParSite{V<:Vec{Float64}}
+    allelefreqs::V
+    jumpclusterfreqs::V
+    stayfreq::Float64
+end
+
+allelefreqs(par::ParSite) = par.allelefreqs
+jumpclusterfreqs(par::ParSite) = par.jumpclusterfreqs
+stayfreq(par::ParSite) = par.stayfreq
+
+function parinit(C::Int, positions; scaling=1e6)
     S = length(positions)
-    allelefreqs = rand(SVector{C, Float64}, S)
-    jumpclusterfreqs = map(norm, rand(SVector{C, Float64}, S))
+    allelefreqs = rand(Float64, (S, C))
+    jumpclusterfreqs = norm(rand(Float64, (S, C)); dims=2)
     distances = [typemax(UInt64); diff(positions)]
     stayfreqs = exp.(-(distances ./ scaling))
-    Par{C}(allelefreqs, jumpclusterfreqs, stayfreqs)
+    Par(allelefreqs, jumpclusterfreqs, stayfreqs)
 end
 
-function protect!(par::Par{C}; minallelefreq=1e-15, minjumpclusterfreq=1e-15, minstayfreq=0.9, maxstayfreq=exp(-1e-9)) where {C}
+function protect!(par::Par; minallelefreq=1e-15, minjumpclusterfreq=1e-15, minstayfreq=0.9, maxstayfreq=exp(-1e-9))
     maxallelefreq = 1.0 - minallelefreq
     maxjumpclusterfreq = 1.0 - minjumpclusterfreq
+    clamp!(par.allelefreqs, minallelefreq, maxallelefreq)
+    clamp!(par.jumpclusterfreqs, minjumpclusterfreq, maxjumpclusterfreq)
     for s in 1:sites(par)
-        par.allelefreqs[s] = 
-            clamp.(par.allelefreqs[s], minallelefreq, maxallelefreq)
-        par.jumpclusterfreqs[s] = 
-            norm(clamp.(par.jumpclusterfreqs[s], minjumpclusterfreq, maxjumpclusterfreq))
+        norm!(par.jumpclusterfreqs[s, :])
     end
-    clamp!(par.stayfreqs[2:end], minstayfreq, maxstayfreq)
+    clamp!(par.stayfreqs, minstayfreq, maxstayfreq)
+    par.stayfreqs[1] = 0
 end
 
 end
