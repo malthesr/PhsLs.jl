@@ -1,0 +1,11 @@
+name = "Phase"
+uuid = "9d9b69ad-534d-4d27-993a-5a8d70ea5cf0"
+authors = ["Malthe Sebro Rasmussen <malthesebro@protonmail.com>"]
+version = "0.1.0"
+
+[deps]
+GZip = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Transducers = "28d57a85-8fef-5791-bfe6-a80928e7c999"
