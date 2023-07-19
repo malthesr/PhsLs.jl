@@ -32,6 +32,8 @@ struct ParSite{V<:Vec{Float64}}
     stayfreq::Float64
 end
 
+Base.length(par::ParSite{V}) where {V} = length(allelefreqs)
+
 allelefreqs(par::ParSite) = par.allelefreqs
 jumpclusterfreqs(par::ParSite) = par.jumpclusterfreqs
 stayfreq(par::ParSite) = par.stayfreq

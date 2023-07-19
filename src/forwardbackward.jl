@@ -19,6 +19,8 @@ function FwdBwd(gl::Vec{Gl}, par::Par)
     FwdBwd(a, b, c)
 end
 
+Base.size(ab::FwdBwd) = size(fwd(ab))
+
 fwd(ab::FwdBwd) = ab.fwd
 bwd(ab::FwdBwd) = ab.bwd
 scaling(ab::FwdBwd) = ab.scaling
@@ -81,6 +83,44 @@ function backward(gl::Vec{Gl}, c::Vec{Float64}, par::Par)
         ) ./ c[s]
     end
     b
+end
+
+function Base.read(prefix::AbstractString, ::Type{FwdBwd}, ind::Integer; kwargs...)
+    fwdpath = prefix * ".alpha.bin"
+    bwdpath = prefix * ".beta.bin"
+    read(fwdpath, bwdpath, FwdBwd, ind; kwargs...)
+end
+
+function Base.read(fwdpath::AbstractString, bwdpath::AbstractString, ::Type{FwdBwd}, ind::Integer; kwargs...)
+    fwdio = open(fwdpath, "r")
+    bwdio = open(bwdpath, "r")
+    read(fwdio, bwdio, FwdBwd, ind; kwargs...)
+end
+
+function Base.read(fwdio::IO, bwdio::IO, ::Type{FwdBwd}, ind::Integer; kwargs...)
+    a = readind(fwdio, ind; kwargs...)
+    b = readind(bwdio, ind; kwargs...)
+    c = fill(NaN, size(a, 1)) # FIXME: Get Zilong to print the scaling factors
+    FwdBwd(a, b, c)
+end
+
+function readhdr(io::IO)
+    seekstart(io)
+    C = read(io, UInt32)
+    I = read(io, UInt32)
+    S = read(io, UInt32)
+    (C, I, S)
+end
+
+function readind(io::IO, ind::Integer; maxsites=nothing)
+    (C, I, S) = readhdr(io)
+    @assert(ind <= I)
+    offset = 3 * sizeof(UInt32) + sizeof(Float64) * (ind - 1) * C^2 * S
+    seek(io, offset)
+    sites = isnothing(maxsites) ? S : min(maxsites, S)
+    data = Array{Float64}(undef, C, C, sites)
+    read!(io, data)
+    permutedims(data, (3, 2, 1))
 end
 
 end

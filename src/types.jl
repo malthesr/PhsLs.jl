@@ -15,6 +15,8 @@ const Arr{T} = StridedArray{T, 3}
     alt = 1
 end
 
+Base.to_index(A, a::Allele) = Base.to_index(A, Int(a) + 1)
+
 struct G <: AbstractVector{Allele}
     alleles::SVector{2, Allele}
 end
