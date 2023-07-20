@@ -7,9 +7,11 @@ using Reexport
 include("utils.jl")
 include("types.jl")
 include("input.jl")
+include("emcore.jl")
 
 @reexport using .Types
 @reexport using .Input
+@reexport using .EmCore
 
 module Phase
 
@@ -17,6 +19,7 @@ using Reexport
 
 using ..Utils
 using ..Types
+using ..EmCore
 
 include("phase/parameters.jl")
 include("phase/emission.jl")
