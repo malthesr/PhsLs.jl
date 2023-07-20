@@ -44,7 +44,7 @@ function Base.:+(x::EStep{A, M}, y::EStep{A, M}) where {A, M}
 end
 
 function estep(gl::Vec{Gl}, par::Par)
-    ab = FwdBwd(gl, par)
+    ab = forwardbackward(gl, par)
     clusterallele = clusteralleleexpect(gl, ab, par)
     jumpcluster = jumpclusterexpect(gl, ab, par)
     loglik = loglikelihood(ab)

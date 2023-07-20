@@ -4,11 +4,19 @@ import StaticArrays: SVector, SMatrix
 import Base.Iterators: product
 
 export Allele, ref, alt, G, gs, alts, Gl, Cluster, cs, Z, zs,
-    Vec, Mat, Arr, sites, inds, site, ind, eachsite, eachind
+    Vec, Mat, Arr, sites, inds, clusters, site, ind, eachsite, eachind
 
 const Vec{T} = StridedVector{T}
 const Mat{T} = StridedMatrix{T}
 const Arr{T} = StridedArray{T, 3}
+
+function sites end
+function inds end
+function clusters end
+function site end
+function ind end
+function eachsite end
+function eachind end
 
 @enum Allele begin
     ref = 0
@@ -81,11 +89,7 @@ Base.length(z::Z) = 3
 Base.iterate(z::Z) = iterate(parent(z))
 Base.IndexStyle(::Type{Z}) = IndexLinear()
 
-cs(C::Int) = map(Cluster, 1:C)
-
-function zs(C::Int)
-    it = cs(C);
-    map(Z, product(it, it))
-end
+cs(C::Integer) = map(Cluster, 1:C)
+zs(C::Integer) = map(Z, product(cs(C), cs(C)))
 
 end

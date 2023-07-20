@@ -20,7 +20,7 @@ function clusterliks(ab::FwdBwd, clusterfreqs::Mat)
 end
 
 clusterliks(gl::Vec{Gl}, clusterfreqs::Mat, par::Par) =
-    clusterliks(FwdBwd(gl, par), clusterfreqs)
+    clusterliks(forwardbackward(gl, par), clusterfreqs)
 
 function mlclusters(clusterliks::Mat)
     sortml = ml -> ml[1] > ml[2] ? (ml[2], ml[1]) : ml
@@ -41,7 +41,7 @@ function clusterfreqs(gl::Mat{Gl}, par::Par)
     S, C = size(par)
     cf = zeros(Float64, S, C)
     for i in 1:I
-        ab = FwdBwd(ind(gl, i), par)
+        ab = forwardbackward(ind(gl, i), par)
         cf += clusterexpect(ab)
     end
     norm(cf, dims=2)
@@ -60,6 +60,6 @@ function call(gl::Vec{Gl}, ab::FwdBwd, par::Par)
     )
 end
 
-call(gl::Vec{Gl}, par::Par) = call(gl, FwdBwd(gl, par), par)
+call(gl::Vec{Gl}, par::Par) = call(gl, forwardbackward(gl, par), par)
 
 end

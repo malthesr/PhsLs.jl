@@ -15,9 +15,9 @@ function clusteralleleexpect(gl::Vec{Gl}, ab::FwdBwd, par::Par)
     (S, C) = size(par)
     expect = zeros(Float64, S, C, 2)
     for s in 1:S
-        af = allelefreqs(par[s])
+        af = P(par[s])
         k = clusterpost(ab[s]) ./ emission(gl[s], af)
-        for z in cs(length(af))
+        for z in cs(clusters(par))
             expect[s, z, 1] = sum(
                 k[z, :] .* (1 - af[z]) .* (gl[s][1] .* (1 .- af) .+ gl[s][2] .* af)
             )
@@ -47,7 +47,7 @@ function jumpclusterexpect(gl::Gl, aprev::Mat{Float64}, b::Mat{Float64}, c::Floa
     colsums = (1 - e) * e .* colsum(aprev) .+ 
         (1 - e)^2 .* jumpclusterfreqs(par)
     rowsum(
-        emission(gl, par) .* 
+        emission(gl, P(par)) .* 
         b .* 
         outer(jumpclusterfreqs(par), colsums)
     ) ./ c
