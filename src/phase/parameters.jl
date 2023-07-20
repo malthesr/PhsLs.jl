@@ -52,7 +52,7 @@ function parinit(C::Int, positions; scaling=1e6)
     Par(allelefreqs, jumpclusterfreqs, stayfreqs)
 end
 
-function protect!(par::Par; minP=1e-15, minH=1e-15, minstayfreq=0.9, maxstayfreq=exp(-1e-9))
+function protect!(par::Par; minP=1e-6, minH=1e-6, minstayfreq=0.1, maxstayfreq=exp(-1e-9))
     clamp!(P(par), minP, 1.0 - minP)
     clamp!(H(par), minH, 1.0 - minH)
     foreach(par -> norm!(H(par)), eachsite(par))
