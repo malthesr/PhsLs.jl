@@ -1,6 +1,6 @@
 module Emission
 
-export emission
+export emission, emission!
 
 using ..Types
 using ..Parameters
@@ -17,5 +17,12 @@ emission(gl::Gl, af::Vec{Float64}) =
     map(z -> emission(gl, z, af), zs(length(af)))
 emission(gl::Gl, par::ParSite) = 
     emission(gl, allelefreqs(par))
+
+function emission!(m::Mat{Float64}, gl::Gl, af::Vec{Float64})
+    for (i, z) in zip(eachindex(m), zs(length(af)))
+        m[i] = emission(gl, z, af)
+    end
+end
+
 
 end

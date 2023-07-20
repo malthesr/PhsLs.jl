@@ -52,12 +52,14 @@ function forward(gl::Vec{Gl}, par::Par)
     (S, C) = size(par)
     a = zeros(Float64, S, C, C)
     c = zeros(Float64, S)
-    (c[1], a[1, :, :]) = cnorm(emission(gl[1], par[1]) .* 
+    emissionbuf = emission(gl[1], allelefreqs(par[1]))
+    (c[1], a[1, :, :]) = cnorm(emissionbuf .* 
         outer(jumpclusterfreqs(par[1])))
     for s in 2:S
         e = stayfreq(par[s])
         sums = symouter(jumpclusterfreqs(par[s]), colsum(a[s - 1, :, :]))
-        (c[s], a[s, :, :]) = cnorm(emission(gl[s], par[s]) .* (
+        emission!(emissionbuf, gl[s], allelefreqs(par[s]))
+        (c[s], a[s, :, :]) = cnorm(emissionbuf .* (
             e^2 .* a[s - 1, :, :] .+ 
             e .* (1 - e) .* sums .+
             (1 - e)^2 .* outer(jumpclusterfreqs(par[s]))
@@ -70,14 +72,16 @@ function backward(gl::Vec{Gl}, c::Vec{Float64}, par::Par)
     (S, C) = size(par)
     b = zeros(Float64, S, C, C)
     b[S, :, :] .= 1.0
+    buf = zeros(Float64, C, C)
     for s in reverse(2:S)
         e = stayfreq(par[s])
-        be = emission(gl[s], par[s]) .* b[s, :, :]
-        colsums = colsum(jumpclusterfreqs(par[s]) .* be)
+        emission!(buf, gl[s], allelefreqs(par[s]))
+        buf .*= b[s, :, :]
+        colsums = colsum(jumpclusterfreqs(par[s]) .* buf)
         sums = outer(+, colsums, colsums) 
-        allsum = sum(outer(jumpclusterfreqs(par[s])) .* be)
+        allsum = sum(outer(jumpclusterfreqs(par[s])) .* buf)
         b[s - 1, :, :] = (
-            e^2 .* be .+
+            e^2 .* buf .+
             e .* (1 - e) .* sums .+
             (1 - e)^2 .* allsum
         ) ./ c[s]

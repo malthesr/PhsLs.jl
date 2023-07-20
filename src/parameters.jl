@@ -4,7 +4,8 @@ using ..Utils
 using ..Types
 
 export Par, ParSite, AlleleFreqs, JumpClusterFreqs, StayFreq, 
-    parinit, allelefreqs, jumpclusterfreqs, stayfreq, sites, protect!
+    parinit, allelefreqs, jumpclusterfreqs, stayfreq, sites, protect!,
+    clusters
 
 struct ParameterException <: Exception end
 
@@ -24,6 +25,7 @@ end
 
 Base.size(par::Par) = size(par.allelefreqs)
 Types.sites(par::Par) = size(par.allelefreqs, 1)
+clusters(par::Par) = size(par.allelefreqs, 2)
 Types.eachsite(par::Par) = map(s -> par[s], 1:sites(par))
 
 struct ParSite{V<:Vec{Float64}}

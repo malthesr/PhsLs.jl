@@ -3,7 +3,7 @@ module Types
 import StaticArrays: SVector, SMatrix
 import Base.Iterators: product
 
-export Allele, ref, alt, G, gs, alts, Gl, Cluster, clusters, Z, zs,
+export Allele, ref, alt, G, gs, alts, Gl, Cluster, cs, Z, zs,
     Vec, Mat, Arr, sites, inds, site, ind, eachsite, eachind
 
 const Vec{T} = StridedVector{T}
@@ -81,10 +81,10 @@ Base.length(z::Z) = 3
 Base.iterate(z::Z) = iterate(parent(z))
 Base.IndexStyle(::Type{Z}) = IndexLinear()
 
-clusters(C::Int) = map(Cluster, 1:C)
+cs(C::Int) = map(Cluster, 1:C)
 
 function zs(C::Int)
-    it = clusters(C);
+    it = cs(C);
     map(Z, product(it, it))
 end
 

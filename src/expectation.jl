@@ -11,20 +11,20 @@ using ..Emission
 using ..Posterior
 using ..ForwardBackward
 
-function clusteralleleexpect(gl::Gl, ab::FwdBwdSite, par::ParSite)
-    af = allelefreqs(par)
-    k = clusterpost(ab) ./ emission(gl, af)
-    refexpect = z -> sum(k[z, :] .* (1 - af[z]) .* (gl[1] .* (1 .- af) .+ gl[2] .* af))
-    altexpect = z -> sum(k[z, :] .* af[z] .* (gl[2] .* (1 .- af) + gl[3] .* af))
-    fns = [refexpect, altexpect]
-    map(((z, f),) -> f(z), product(clusters(length(af)), fns))
-end
-
 function clusteralleleexpect(gl::Vec{Gl}, ab::FwdBwd, par::Par)
     (S, C) = size(par)
     expect = zeros(Float64, S, C, 2)
     for s in 1:S
-        expect[s, :, :] = clusteralleleexpect(gl[s], ab[s], par[s])
+        af = allelefreqs(par[s])
+        k = clusterpost(ab[s]) ./ emission(gl[s], af)
+        for z in cs(length(af))
+            expect[s, z, 1] = sum(
+                k[z, :] .* (1 - af[z]) .* (gl[s][1] .* (1 .- af) .+ gl[s][2] .* af)
+            )
+            expect[s, z, 2] = sum(
+                k[z, :] .* af[z] .* (gl[s][2] .* (1 .- af) + gl[s][3] .* af)
+            )
+        end
     end
     expect
 end
