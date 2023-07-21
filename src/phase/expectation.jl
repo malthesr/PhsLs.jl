@@ -11,7 +11,7 @@ using ..Emission
 using ..Posterior
 using ..ForwardBackward
 
-function clusteralleleexpect(gl::Vec{Gl}, ab::FwdBwd, par::Par)
+function clusteralleleexpect(gl::GlVec, ab::FwdBwd, par::Par)
     (S, C) = size(par)
     expect = zeros(Float64, S, C, 2)
     for s in 1:S
@@ -42,7 +42,7 @@ function clusterexpect(ab::FwdBwd)
     expect
 end
 
-function jumpclusterexpect(gl::Gl, aprev::Mat{Float64}, b::Mat{Float64}, c::Float64, par::ParSite)
+function jumpclusterexpect(gl::Gl, aprev::Mat, b::Mat, c::Float64, par::ParSite)
     e = stayfreq(par)
     colsums = (1 - e) * e .* colsum(aprev) .+ 
         (1 - e)^2 .* jumpclusterfreqs(par)
@@ -53,7 +53,7 @@ function jumpclusterexpect(gl::Gl, aprev::Mat{Float64}, b::Mat{Float64}, c::Floa
     ) ./ c
 end
 
-function jumpclusterexpect(gl::Vec{Gl}, ab::FwdBwd, par::Par)
+function jumpclusterexpect(gl::GlVec, ab::FwdBwd, par::Par)
     (S, C) = size(par)
     expect = zeros(Float64, S, C)
     expect[1, :] = clusterexpect(ab[1])

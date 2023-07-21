@@ -9,7 +9,7 @@ using ..ForwardBackward
 using ..Expectation
 using ..EmCore
 
-struct Expect{A<:Arr{Float64}, M<:Mat{Float64}}
+struct Expect{A<:Arr, M<:Mat}
     clusterallele::A
     jumpcluster::M
 end
@@ -17,7 +17,7 @@ end
 Base.:+(x::Expect{A, M}, y::Expect{A, M}) where {A, M} =
     Expect(x.clusterallele .+ y.clusterallele, x.jumpcluster .+ y.jumpcluster)
 
-function EmCore.estep(gl::Vec{Gl}, par::Par)
+function EmCore.estep(gl::GlVec, par::Par)
     ab = forwardbackward(gl, par)
     clusterallele = clusteralleleexpect(gl, ab, par)
     jumpcluster = jumpclusterexpect(gl, ab, par)
@@ -25,7 +25,7 @@ function EmCore.estep(gl::Vec{Gl}, par::Par)
     EStep(Expect(clusterallele, jumpcluster), loglik)
 end
 
-EmCore.estep(gl::Mat{Gl}, par::Par) =
+EmCore.estep(gl::GlMat, par::Par) =
     parmapreduce(gl -> Sum(estep(gl, par)), +, eachind(gl))
 
 function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}) where {A, M}

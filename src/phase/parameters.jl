@@ -6,13 +6,13 @@ using ..Types
 export Par, ParSite,
     parinit, allelefreqs, jumpclusterfreqs, stayfreqs, stayfreq, P, H,  protect!
 
-struct Par{M<:Mat{Float64}, V<:Vec{Float64}}
+struct Par{M<:Mat, V<:Vec}
     allelefreqs::M
     jumpclusterfreqs::M
     stayfreqs::V
 end
 
-struct ParSite{V<:Vec{Float64}}
+struct ParSite{V<:Vec}
     allelefreqs::V
     jumpclusterfreqs::V
     stayfreq::Float64

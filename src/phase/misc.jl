@@ -19,7 +19,7 @@ function clusterliks(ab::FwdBwd, clusterfreqs::Mat)
     cl
 end
 
-clusterliks(gl::Vec{Gl}, clusterfreqs::Mat, par::Par) =
+clusterliks(gl::GlVec, clusterfreqs::Mat, par::Par) =
     clusterliks(forwardbackward(gl, par), clusterfreqs)
 
 function mlclusters(clusterliks::Mat)
@@ -30,13 +30,13 @@ end
 
 mlclusters(clusterliks::Arr) = map(mlclusters, eachslice(clusterliks, dims=1))
 
-mlclusters(gl::Vec{Gl}, clusterfreqs::Mat, par::Par) = 
+mlclusters(gl::GlVec, clusterfreqs::Mat, par::Par) = 
     mlclusters(clusterliks(gl, clusterfreqs, par))
 
-mlclusters(gl::Mat{Gl}, clusterfreqs::Mat, par::Par) =
+mlclusters(gl::GlMat, clusterfreqs::Mat, par::Par) =
     reduce(hcat, map(gl -> mlclusters(gl, clusterfreqs, par), eachind(gl)))
 
-function clusterfreqs(gl::Mat{Gl}, par::Par)
+function clusterfreqs(gl::GlMat, par::Par)
     I = inds(gl)
     S, C = size(par)
     cf = zeros(Float64, S, C)
@@ -53,13 +53,13 @@ function call(gl::Gl, ab::FwdBwdSite, par::ParSite)
     G(Tuple(argmax(post)) .- 1)
 end
 
-function call(gl::Vec{Gl}, ab::FwdBwd, par::Par)
+function call(gl::GlVec, ab::FwdBwd, par::Par)
     map(
         ((gl, ab, par),) -> genotypepost(gl, ab, par),
         gl, eachsite(ab), eachsite(par)
     )
 end
 
-call(gl::Vec{Gl}, par::Par) = call(gl, forwardbackward(gl, par), par)
+call(gl::GlVec, par::Par) = call(gl, forwardbackward(gl, par), par)
 
 end

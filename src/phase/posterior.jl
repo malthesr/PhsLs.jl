@@ -25,7 +25,7 @@ function genotypepost(gl::Gl, ab::FwdBwdSite, par::ParSite)
     SMatrix(post)
 end
 
-function genotypepost(gl::Vec{Gl}, ab::FwdBwd, par::Par)
+function genotypepost(gl::GlVec, ab::FwdBwd, par::Par)
     map(
         ((gl, ab, par),) -> genotypepost(gl, ab, par),
         gl, eachsite(ab), eachsite(par)

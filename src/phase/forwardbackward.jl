@@ -7,13 +7,13 @@ using ..Types
 using ..Parameters
 using ..Emission
 
-struct FwdBwd{A<:Arr{Float64}}
+struct FwdBwd{A<:Arr, V<:Vec}
     fwd::A
     bwd::A
-    scaling::Vector{Float64}
+    scaling::V
 end
 
-struct FwdBwdSite{M<:Mat{Float64}}
+struct FwdBwdSite{M<:Mat}
     fwd::M
     bwd::M
     scaling::Float64
@@ -39,13 +39,13 @@ Types.clusters(ab::FwdBwdSite) = size(fwd(ab), 1)
 
 loglikelihood(ab::FwdBwd) = reduce(+, log.(scaling(ab)))
 
-function forwardbackward(gl::Vec{Gl}, par::Par)
+function forwardbackward(gl::GlVec, par::Par)
     c, a = forward(gl, par)
     b = backward(gl, c, par)
     FwdBwd(a, b, c)
 end
 
-function forward(gl::Vec{Gl}, par::Par)
+function forward(gl::GlVec, par::Par)
     (S, C) = size(par)
     a = zeros(Float64, S, C, C)
     c = zeros(Float64, S)
@@ -64,7 +64,7 @@ function forward(gl::Vec{Gl}, par::Par)
     (c, a)
 end
 
-function backward(gl::Vec{Gl}, c::Vec{Float64}, par::Par)
+function backward(gl::GlVec, c::Vec, par::Par)
     (S, C) = size(par)
     b = zeros(Float64, S, C, C)
     b[S, :, :] .= 1.0
@@ -118,7 +118,7 @@ function readind(io::IO, ind::Integer; maxsites=nothing)
     offset = 3 * sizeof(UInt32) + sizeof(Float64) * (ind - 1) * C^2 * S
     seek(io, offset)
     sites = isnothing(maxsites) ? S : min(maxsites, S)
-    data = Array{Float64}(undef, C, C, sites)
+    data = Arr(undef, C, C, sites)
     read!(io, data)
     permutedims(data, (3, 2, 1))
 end

@@ -26,15 +26,16 @@ Base.:+(x::EStep{T}, y::EStep{T}) where {T} =
 
 function estep end
 function mstep end
-emstep(input, par) = mstep(estep(input, par))
+emstep(input, par; kwargs...) = mstep(estep(input, par; kwargs...))
 
-function em(input, par; tol=1e-4, maxiter=100)
+function em(input, par; tol=1e-4, maxiter=100, kwargs...)
     oldloglik = -Inf
     change = Inf
     iter = 0
     logliks = Float64[]
     while change > tol && iter < maxiter
-        (loglik, par) = emstep(input, par)
+        (loglik, par) = emstep(input, par; kwargs...)
+        @assert(loglik >= oldloglik, "logℓ is not monotonically non-decreasing")
         iter += 1
         change = loglik - oldloglik
         @info("Finished EM iteration $(iter): logℓ=$(loglik) (Δ=$(change))")

@@ -5,17 +5,17 @@ export emission, emission!
 using ..Types
 
 emission(a::Allele, af::Float64) = a == alt ? af : 1 - af
-emission(g::G, z::Z, af::Vec{Float64}) = 
+emission(g::G, z::Z, af::Vec) = 
     prod(((g, z),) -> emission(g, af[z]), zip(g, z))
-emission(g::G, af::Vec{Float64}) = 
+emission(g::G, af::Vec) = 
     map(z -> emission(g, z, af), zs(length(af)))
 
-emission(gl::Gl, z::Z, af::Vec{Float64}) = 
+emission(gl::Gl, z::Z, af::Vec) = 
     sum(g -> gl[g] * emission(g, z, af), gs)
-emission(gl::Gl, af::Vec{Float64}) = 
+emission(gl::Gl, af::Vec) = 
     map(z -> emission(gl, z, af), zs(length(af)))
 
-function emission!(m::Mat{Float64}, gl::Gl, af::Vec{Float64})
+function emission!(m::Mat, gl::Gl, af::Vec)
     for (i, z) in zip(eachindex(m), zs(length(af)))
         m[i] = emission(gl, z, af)
     end
