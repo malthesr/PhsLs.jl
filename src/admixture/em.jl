@@ -22,8 +22,9 @@ function EmCore.estep(clusterliks::Arr, par::ParInd)
 end
 
 function EmCore.estep(gl::GlMat, par::Par; clusterlikfn::Function)
-    it = zip(eachind(gl), eachind(par))
-    parmapreduce(((gl, par),) -> Sum(estep(clusterlikfn(gl), par)), +, it)
+    it = enumerate(zip(eachind(gl), eachind(par)))
+    fn = ((i, (gl, par),),) -> Sum(estep(clusterlikfn(i, gl), par))
+    parmapreduce(fn, +, it)
 end
 
 function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}) where {A, M}
