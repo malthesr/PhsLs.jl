@@ -18,6 +18,13 @@ struct ParSite{V<:Vec}
     stayfreq::Float64
 end
 
+function Base.getindex(par::Par, s::AbstractVector{<:Integer})
+    Par(
+        par.allelefreqs[s, :],
+        par.jumpclusterfreqs[s, :],
+        par.stayfreqs[s]
+    )
+end
 function Base.getindex(par::Par, s::Int)
     ParSite(
         view(par.allelefreqs, s, :),
