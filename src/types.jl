@@ -4,8 +4,8 @@ import StaticArrays: FieldVector, SMatrix
 import Base.Iterators: product
 
 export Vec, Mat, Arr, Allele, ref, alt, G, GVec, GMat, gs, alts, Gl, GlVec, GlMat,
-    Cluster, Z, cs, zs, Pop, Y, ks, ys, sites, inds, clusters, populations, 
-    site, ind, eachsite, eachind
+    Cluster, Z, cs, zs, Jump, stay, jump, J, js, Pop, Y, ks, ys, 
+    sites, inds, clusters, populations, site, ind, eachsite, eachind
 
 const Vec = StridedVector{Float64}
 const Mat = StridedMatrix{Float64}
@@ -77,6 +77,20 @@ Z(a::Integer, b::Integer) = Z(Cluster(a), Cluster(b))
 
 cs(C::Integer) = map(Cluster, 1:C)
 zs(C::Integer) = map(Z, product(cs(C), cs(C)))
+
+@enum Jump begin
+    stay = 0
+    jump = 1
+end
+
+struct J <: FieldVector{2, Jump}
+    fst::Jump
+    snd::Jump
+end
+
+J(a::Integer, b::Integer)::J = J(Jump(a), Jump(b))
+
+const js = SMatrix{2, 2}(J(0, 0), J(0, 1), J(1, 0), J(1, 1))
 
 const Pop = UInt8
 

@@ -4,7 +4,8 @@ using ..Utils
 using ..Types
 
 export Par, ParSite,
-    parinit, allelefreqs, jumpclusterfreqs, stayfreqs, stayfreq, P, H,  protect!
+    parinit, allelefreqs, jumpclusterfreqs, stayfreqs, stayfreq, jumpfreq,
+    P, H,  protect!
 
 struct Par{M<:Mat, V<:Vec}
     allelefreqs::M
@@ -37,6 +38,7 @@ allelefreqs(par) = par.allelefreqs
 jumpclusterfreqs(par) = par.jumpclusterfreqs
 stayfreqs(par::Par) = par.stayfreqs
 stayfreq(par::ParSite) = par.stayfreq
+jumpfreq(par::ParSite) = (1.0 - par.stayfreq)
 
 P(par) = allelefreqs(par)
 H(par) = jumpclusterfreqs(par)
@@ -48,7 +50,7 @@ Types.sites(par::Par) = size(P(par), 1)
 Types.clusters(par::Par) = size(par.allelefreqs, 2)
 Types.eachsite(par::Par) = map(s -> par[s], 1:sites(par))
 
-Types.clusters(par::ParSite) = length(par)
+Types.clusters(par::ParSite) = length(allelefreqs(par))
 
 function parinit(C::Int, positions; scaling=1e6)
     S = length(positions)

@@ -23,6 +23,7 @@ using ..EmCore
 
 include("phase/parameters.jl")
 include("phase/emission.jl")
+include("phase/transition.jl")
 include("phase/forwardbackward.jl")
 include("phase/posterior.jl")
 include("phase/expectation.jl")
@@ -31,6 +32,7 @@ include("phase/misc.jl")
 
 @reexport using .Parameters
 @reexport using .Emission
+@reexport using .Transition
 @reexport using .ForwardBackward
 @reexport using .Posterior
 @reexport using .Expectation
