@@ -38,7 +38,9 @@ function em(input, par; tol=1e-4, maxiter=100, kwargs...)
         iter += 1
         change = loglik - oldloglik
         @info("Finished EM iteration $(iter): logℓ=$(loglik) (Δ=$(change))")
-        @assert(loglik >= oldloglik, "logℓ is not monotonically non-decreasing")
+        if loglik < oldloglik
+            @warn("logℓ is not monotonically non-decreasing")
+        end
         oldloglik = loglik
         push!(logliks, loglik)
     end

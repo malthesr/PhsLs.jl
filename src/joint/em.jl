@@ -49,4 +49,25 @@ function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}) where {A, M}
     (sum.total.loglik, newpar)
 end
 
+function accelerate(par0, par1, par2)
+    r = par1 .- par0
+    v = (par2 .- par1) .- r
+    alpha = -sqrt(sum(r.^2)) / sqrt(sum(v.^2))
+    paraccel = par0 .- r .* 2 .* alpha .+ v .* alpha^2
+    paraccel
+end
+
+function EmCore.emstep(gl::GlMat, par::Par)
+    (_loglik1, par1) = mstep(estep(gl, par))
+    (loglik2, par2) = mstep(estep(gl, par1))
+    qaccel = accelerate(Q(par), Q(par1), Q(par2))
+    accelpar = Par(
+        P(par2), 
+        F(par2),
+        stayfreqs(par2),
+        qaccel
+    )
+    (loglik2, accelpar)
+end
+
 end
