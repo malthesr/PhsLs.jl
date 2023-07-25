@@ -1,7 +1,5 @@
 module Em
 
-using Logging
-
 using ..Utils
 using ..Types
 using ..Parameters
