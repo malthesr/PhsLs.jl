@@ -35,10 +35,10 @@ function em(input, par; tol=1e-4, maxiter=100, kwargs...)
     logliks = Float64[]
     while change > tol && iter < maxiter
         (loglik, par) = emstep(input, par; kwargs...)
-        @assert(loglik >= oldloglik, "logℓ is not monotonically non-decreasing")
         iter += 1
         change = loglik - oldloglik
         @info("Finished EM iteration $(iter): logℓ=$(loglik) (Δ=$(change))")
+        @assert(loglik >= oldloglik, "logℓ is not monotonically non-decreasing")
         oldloglik = loglik
         push!(logliks, loglik)
     end
