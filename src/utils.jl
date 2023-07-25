@@ -1,6 +1,6 @@
 module Utils
 
-using Transducers: foldxt, Map
+using ThreadsX
 
 export norm, norm!, cnorm, cnorm!, allsame, outer, symouter, 
     colsum, colsum!, rowsum, rowsum!, sumdrop, parmapreduce
@@ -45,6 +45,6 @@ function rowsum!(v::AbstractVector, m::AbstractMatrix)
     end
 end
 
-parmapreduce(f, op, it) = foldxt(op, it |> Map(f))
+@inline parmapreduce(f, op, it) = ThreadsX.mapreduce(f, op, it)
 
 end
