@@ -1,6 +1,6 @@
 module PhsLs
 
-export Phase, Admixture
+export Phase, Admixture, Joint
 
 using Reexport
 
@@ -60,6 +60,32 @@ include("admixture/em.jl")
 @reexport using .Expectation
 @reexport using .Em
 @reexport using .Misc
+
+end
+
+module Joint
+
+using Reexport
+
+using ..Utils
+using ..Types
+using ..EmCore
+
+include("joint/parameters.jl")
+include("joint/emission.jl")
+include("joint/transition.jl")
+include("joint/forwardbackward.jl")
+include("joint/posterior.jl")
+include("joint/expectation.jl")
+include("joint/em.jl")
+
+@reexport using .Parameters
+@reexport using .Emission
+@reexport using .Transition
+@reexport using .ForwardBackward
+@reexport using .Posterior
+@reexport using .Expectation
+@reexport using .Em
 
 end
 
