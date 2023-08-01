@@ -1,92 +1,21 @@
 module PhsLs
 
-export Phase, Admixture, Joint
-
 using Reexport
 
 include("utils.jl")
 include("types.jl")
 include("input.jl")
-include("emcore.jl")
+include("parameters.jl")
+include("emission.jl")
+include("transition.jl")
+include("forwardbackward.jl")
 
+@reexport using .Utils
 @reexport using .Types
 @reexport using .Input
-@reexport using .EmCore
-
-module Phase
-
-using Reexport
-
-using ..Utils
-using ..Types
-using ..EmCore
-
-include("phase/parameters.jl")
-include("phase/emission.jl")
-include("phase/transition.jl")
-include("phase/forwardbackward.jl")
-include("phase/posterior.jl")
-include("phase/expectation.jl")
-include("phase/em.jl")
-include("phase/misc.jl")
-
 @reexport using .Parameters
 @reexport using .Emission
 @reexport using .Transition
 @reexport using .ForwardBackward
-@reexport using .Posterior
-@reexport using .Expectation
-@reexport using .Em
-@reexport using .Misc
-
-end
-
-module Admixture
-
-using Reexport
-
-using ..Utils
-using ..Types
-using ..EmCore
-
-include("admixture/parameters.jl")
-include("admixture/posterior.jl")
-include("admixture/misc.jl")
-include("admixture/expectation.jl")
-include("admixture/em.jl")
-
-@reexport using .Parameters
-@reexport using .Posterior
-@reexport using .Expectation
-@reexport using .Em
-@reexport using .Misc
-
-end
-
-module Joint
-
-using Reexport
-
-using ..Utils
-using ..Types
-using ..EmCore
-
-include("joint/parameters.jl")
-include("joint/emission.jl")
-include("joint/transition.jl")
-include("joint/forwardbackward.jl")
-include("joint/posterior.jl")
-include("joint/expectation.jl")
-include("joint/em.jl")
-
-@reexport using .Parameters
-@reexport using .Emission
-@reexport using .Transition
-@reexport using .ForwardBackward
-@reexport using .Posterior
-@reexport using .Expectation
-@reexport using .Em
-
-end
 
 end
