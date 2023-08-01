@@ -1,6 +1,6 @@
 module ForwardBackward
 
-export FwdBwd, FwdBwdSite, forwardbackward, fwd, bwd, scaling
+export FwdBwd, FwdBwdSite, forwardbackward, loglikelihood, fwd, bwd, scaling
 
 using ..Utils
 using ..Types
@@ -27,7 +27,7 @@ end
 @inline bwd(ab::FwdBwd) = view(ab.bwd, :, :, :, :, :)
 @inline bwd(ab::FwdBwd, s::Integer) = view(ab.bwd, s, :, :, :, :)
 @inline scaling(ab::FwdBwd) = view(ab.scaling, :)
-@inline scaling(ab::FwdBwd, s::Integer) = view(ab.scaling, s)
+@inline scaling(ab::FwdBwd, s::Integer) = ab.scaling[s]
 
 @inline fwd(ab::FwdBwdSite) = ab.fwd
 @inline bwd(ab::FwdBwdSite) = ab.bwd
@@ -191,17 +191,20 @@ function backward!(b::Arr4, nextsums::BwdSums, c::Float64, par::ParSite)
     (; P, F, Q, er, et) = par
     @inbounds for (z1, z2) in zzs(C)
         for (y1, y2) in yys(K)
-            staystay = er^2 * nextsums.bemit[z1, z2, y1, y2] + 
-                er * (1 - er) * (nextsums.z[z1, y1, y2] + nextsums.z[z2, y2, y1]) +
+            staystay = et^2 * (
+                er^2 * nextsums.bemit[z1, z2, y1, y2] + 
+                er * (1 - er) * (
+                    nextsums.z[z1, y1, y2] + 
+                    nextsums.z[z2, y2, y1]
+                ) +
                 (1 - er)^2 * nextsums.zz[y1, y2]
-            stayjump = er * (nextsums.zy[z1, y1] + nextsums.zy[z2, y2]) +
+            )
+            stayjump = et * (1 - et) * (
+                er * (nextsums.zy[z1, y1] + nextsums.zy[z2, y2]) +
                 (1 - er) * (nextsums.zzy[y1] + nextsums.zzy[y2])
-            jumpjump = nextsums.zzyy
-            b[z1, z2, y1, y2] = (
-                et^2 * staystay + 
-                et * (1 - et) * stayjump + 
-                (1 - et)^2 * jumpjump
-            ) / c
+            )
+            jumpjump = (1 - et)^2 * nextsums.zzyy
+            b[z1, z2, y1, y2] = (staystay +  stayjump + jumpjump) / c
         end
     end
 end
