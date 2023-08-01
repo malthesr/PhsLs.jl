@@ -9,6 +9,7 @@ include("parameters.jl")
 include("emission.jl")
 include("transition.jl")
 include("forwardbackward.jl")
+include("posterior.jl")
 
 @reexport using .Utils
 @reexport using .Types
@@ -17,5 +18,6 @@ include("forwardbackward.jl")
 @reexport using .Emission
 @reexport using .Transition
 @reexport using .ForwardBackward
+@reexport using .Posterior
 
 end
