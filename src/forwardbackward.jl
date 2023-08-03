@@ -155,7 +155,7 @@ function Base.zeros(::Type{BwdSums}, C::Integer, K::Integer)
     BwdSums(
         zeros(C, C, K, K),
         zeros(C, K, K),
-        zeros(C, C),
+        zeros(K, K),
         zeros(C, K),
         zeros(K),
         0.0,

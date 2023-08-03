@@ -1,6 +1,6 @@
 module EmCore
 
-export Sum, EStep, estep, mstep, emstep, em
+export Sum, EStep, estep, mstep, emstep, em, accelerate
 
 using Logging
 
@@ -28,11 +28,13 @@ function estep end
 function mstep end
 emstep(input, par; kwargs...) = mstep(estep(input, par; kwargs...), par)
 
-function em(input, par; tol=1e-4, maxiter=100, kwargs...)
+function em(input, par; tol=1e-4, maxiter=100, saveiter=10, kwargs...)
     oldloglik = -Inf
     change = Inf
     iter = 0
+    loglik = 0.0
     logliks = Float64[]
+    pars = typeof(par)[]
     while change > tol && iter < maxiter
         (loglik, par) = emstep(input, par; kwargs...)
         iter += 1
@@ -42,9 +44,16 @@ function em(input, par; tol=1e-4, maxiter=100, kwargs...)
             @warn("logℓ is not monotonically non-decreasing")
         end
         oldloglik = loglik
+        if (iter % saveiter) == 0
+            push!(pars, par)
+            push!(logliks, loglik)
+        end
+    end
+    if (iter % saveiter) != 0
+        push!(pars, par)
         push!(logliks, loglik)
     end
-    (logliks, par)
+    (logliks, pars)
 end
 
 end
