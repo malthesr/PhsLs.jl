@@ -1,6 +1,6 @@
 module Parameters
 
-export Par, ParInd, ParSite, parinit
+export Par, ParInd, ParSite, parinit, protect!
 
 using ..Utils
 using ..Types
