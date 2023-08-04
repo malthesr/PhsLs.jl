@@ -38,7 +38,7 @@ end
 function EmCore.estep(gl::GlMat, par::Par)
     it = eachind(gl, par)
     fn = ((gl, par),) -> Sum(estep(gl, par))
-    mapreduce(fn, +, it)
+    parmapreduce(fn, +, it)
 end
 
 function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}

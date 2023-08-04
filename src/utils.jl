@@ -1,6 +1,8 @@
 module Utils
 
-export norm!, cnorm!, sumdrop
+using ThreadsX
+
+export norm!, cnorm!, sumdrop, parmapreduce
 
 function norm!(x; dims=nothing)
     if isnothing(dims)
@@ -16,6 +18,8 @@ function cnorm!(x)
     s
 end
 
-sumdrop(x; dims) = dropdims(sum(x, dims=dims), dims=dims)
+@inline sumdrop(x; dims) = dropdims(sum(x, dims=dims), dims=dims)
+
+@inline parmapreduce(f, op, it) = ThreadsX.mapreduce(f, op, it)
 
 end
