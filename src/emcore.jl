@@ -43,13 +43,20 @@ function acceleratedemstep(input, par; kwargs...)
     (_, par1) = emstep(input, par; kwargs...)
     (loglik2, par2) = emstep(input, par1; kwargs...)
     (alpha, accelpar) = accelerate(par, par1, par2)
-    @info("Accelerating with α: $(alpha)")
+    @info("Acceleration has α: $(alpha)")
+    if isapprox(alpha, -1)
+        @info("Skipping accelleration")
+        return (2, loglik2, par2)
+    end
     (accelloglik, accelpar) = emstep(input, accelpar; kwargs...)
     if accelloglik > loglik2
-        (accelloglik, accelpar)
+        (3, accelloglik, accelpar)
     else
-        @warn("Acceleration worse ($(accelloglik)<$(loglik2))), falling back.")
-        (loglik2, par2)
+        @warn(
+            "Accelerated log-likelihood worse after stabilisation \
+            ($(accelloglik)<$(loglik2))), falling back to previous parameters"
+        )
+        (2, loglik2, par2)
     end
 end
 
@@ -65,8 +72,8 @@ function em(input, par; tol=1e-4, maxiter=100, noaccelerate=false, kwargs...)
             (loglik, par) = emstep(input, par; kwargs...)
             iter += 1
         else
-            (loglik, par) = acceleratedemstep(input, par; kwargs...)
-            iter += 3
+            (iters, loglik, par) = acceleratedemstep(input, par; kwargs...)
+            iter += iters
         end
         change = abs(loglik - oldloglik)
         @info("Finished EM iteration $(iter): logℓ=$(loglik) (Δ=$(change))")
