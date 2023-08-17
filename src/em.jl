@@ -59,4 +59,11 @@ function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}
     (sum.total.loglik, newpar)
 end
 
+function EmCore.accelerate(par0::Par, par1::Par, par2::Par)
+    (alpha, accelQ) = accelerate(par0.Q, par1.Q, par2.Q)
+    accelpar = Par(par2.P, par2.F, accelQ, par2.er, par2.et)
+    protect!(accelpar)
+    (alpha, accelpar)
+end
+
 end
