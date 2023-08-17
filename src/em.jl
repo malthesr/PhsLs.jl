@@ -44,6 +44,8 @@ end
 function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}
     I = sum.n
     expect = sum.total.expect
+    jumpfreqs = sumdrop(expect.clusterancestryjump, dims=(2, 3))[2:end] ./ I
+    stayfreqs = [0.;  1.0 .- jumpfreqs] # Must do before normalising in-place
     allelefreqs = expect.clusterallele[:, :, 2] ./ 
         sumdrop(expect.clusterallele, dims=3)
     norm!(expect.clusterancestryjump, dims=(1, 3))
@@ -52,7 +54,7 @@ function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}
         allelefreqs,
         expect.clusterancestryjump,
         expect.ancestryjump,
-        par.er,
+        stayfreqs,
         par.et
     )
     protect!(newpar)
