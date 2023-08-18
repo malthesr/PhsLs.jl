@@ -7,19 +7,19 @@ using ..ForwardBackward
 using ..Posterior
 using ..EmCore
 
-struct Expect{A<:Arr3, M<:Mat, V<:Vec}
+struct Expect{A<:Arr3, M<:Mat}
     clusterallele::A
     clusterancestryjump::A
-    ancestryjump::M
-    ancestryjumpsum::V
+    ancestryjump1::M
+    ancestryjump2::M
 end
 
-Base.:+(x::Expect{A, M, V}, y::Expect{A, M, V}) where {A, M, V} =
+Base.:+(x::Expect{A, M}, y::Expect{A, M}) where {A, M} =
     Expect(
         x.clusterallele .+ y.clusterallele,
         x.clusterancestryjump .+ y.clusterancestryjump,
-        vcat(x.ancestryjump, y.ancestryjump),
-        x.ancestryjumpsum .+ y.ancestryjumpsum,
+        vcat(x.ancestryjump1, y.ancestryjump1),
+        vcat(x.ancestryjump2, y.ancestryjump2),
     )
 
 function EmCore.estep(gl::GlVec, par::ParInd)
@@ -32,10 +32,10 @@ function EmCore.estep(gl::GlVec, par::ParInd)
     clusterallele = clusteralleleexpect(gl, zpost, par);
     @assert(isapprox(sum(clusterallele), S))
     (clusterancestryjump, ancestryjump) = clusterancestryexpects(gl, ab, par);
-    ancestryjumpsum = sumdrop(ancestryjump, dims=2)
-    ancestryjump = reshape(sumdrop(ancestryjump, dims=1), (1, K))
+    ancestryjump1 = reshape(sumdrop(ancestryjump, dims=1), (1, K))
+    ancestryjump2 = reshape(sumdrop(ancestryjump, dims=2), (1, S))
     loglik = loglikelihood(ab)
-    EStep(Expect(clusterallele, clusterancestryjump, ancestryjump, ancestryjumpsum), loglik)
+    EStep(Expect(clusterallele, clusterancestryjump, ancestryjump1, ancestryjump2), loglik)
 end
 
 function EmCore.estep(gl::GlMat, par::Par)
@@ -44,21 +44,22 @@ function EmCore.estep(gl::GlMat, par::Par)
     parmapreduce(fn, +, it)
 end
 
-function EmCore.mstep(sum::Sum{EStep{Expect{A, M, V}}}, par::Par) where {A, M, V}
+function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}
     I = sum.n
     expect = sum.total.expect
-     # Must do these
+     # Must do these before normalizing below
     clusterjumpfreqs = sumdrop(expect.clusterancestryjump, dims=(2, 3))[2:end] ./ I
-    clusterstayfreqs = [0.;  1.0 .- clusterjumpfreqs]
-    ancestrystayfreqs = [0.;  1.0 .- expect.ancestryjumpsum[2:end] ./ I] 
+    clusterstayfreqs = [0.; 1.0 .- clusterjumpfreqs]
+    ancestrystayfreqs = 1.0 .- expect.ancestryjump2
+    ancestrystayfreqs = hcat(ones(I), 1.0 .- expect.ancestryjump2[:, 2:end])
     allelefreqs = expect.clusterallele[:, :, 2] ./ 
         sumdrop(expect.clusterallele, dims=3)
     norm!(expect.clusterancestryjump, dims=(1, 3))
-    norm!(expect.ancestryjump, dims=1)
+    norm!(expect.ancestryjump1, dims=1)
     newpar = Par(
         allelefreqs,
         expect.clusterancestryjump,
-        expect.ancestryjump,
+        expect.ancestryjump1,
         clusterstayfreqs,
         ancestrystayfreqs,
     )

@@ -10,7 +10,7 @@ struct Par{A<:Arr3, M<:Mat, V<:Vec}
     F::A
     Q::M
     er::V
-    et::V
+    et::M
 end
 
 struct ParInd{A<:Arr3, M<:Mat, V<:Vec, W<:Vec}
@@ -18,7 +18,7 @@ struct ParInd{A<:Arr3, M<:Mat, V<:Vec, W<:Vec}
     F::A
     Q::W
     er::V
-    et::V
+    et::W
 end
 
 struct ParSite{M<:Mat, V<:Vec}
@@ -35,7 +35,7 @@ function Base.getindex(par::Par, i::Integer)
         view(par.F, :, :, :),
         view(par.Q, i, :),
         view(par.er, :),
-        view(par.et, :),
+        view(par.et, i, :),
     )
 end
 
@@ -85,12 +85,12 @@ function parinit(I::Integer, C::Integer, K::Integer, positions)
     Q = rand(Float64, (I, K))
     norm!(Q, dims=1)
     d = diff(positions)
-    er = [1; exp.(-(d ./ 1e6))]
-    et = [1; exp.(0.05 .* -(d ./ 1e6))]
+    er = [0; exp.(-(d ./ 1e6))]
+    et = repeat(transpose([0; exp.(0.05 .* -(d ./ 1e6))]), outer=I)
     Par(P, F, Q, er, et)
 end
 
-function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=0.1, maxer=exp(-1e-9), minet=0.1, maxet=exp(-1e-9))
+function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=1e-10, minet=1e-10)
     clamp!(par.P, minP, 1.0 - minP)
 
     clamp!(par.F, minF, 1.0 - minF)
@@ -99,8 +99,8 @@ function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=0.1, maxer=ex
     clamp!(par.Q, minQ, 1.0 - minQ)
     norm!(par.Q, dims=1)
 
-    clamp!(par.er, miner, maxer)
-    clamp!(par.et, minet, maxet)
+    clamp!(par.er, miner, 1.0 - miner)
+    clamp!(par.et, minet, 1.0 - minet)
 end
 
 end
