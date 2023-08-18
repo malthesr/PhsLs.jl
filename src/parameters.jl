@@ -90,7 +90,7 @@ function parinit(I::Integer, C::Integer, K::Integer, positions)
     Par(P, F, Q, er, et)
 end
 
-function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=0.1, maxer=exp(-1e-9))
+function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=0.1, maxer=exp(-1e-9), minet=0.1, maxet=exp(-1e-9))
     clamp!(par.P, minP, 1.0 - minP)
 
     clamp!(par.F, minF, 1.0 - minF)
@@ -100,6 +100,7 @@ function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=0.1, maxer=ex
     norm!(par.Q, dims=1)
 
     clamp!(par.er, miner, maxer)
+    clamp!(par.et, minet, maxet)
 end
 
 end
