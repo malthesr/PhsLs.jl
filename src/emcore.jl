@@ -28,39 +28,7 @@ function estep end
 function mstep end
 emstep(input, par; kwargs...) = mstep(estep(input, par; kwargs...), par)
 
-function accelerate end
-
-function accelerate(par0, par1, par2; minalpha=1, maxalpha=4)
-    r = par1 .- par0
-    v = (par2 .- par1) .- r
-    alpha = sqrt(sum(r.^2)) / sqrt(sum(v.^2))
-    alpha = -min(max(alpha, minalpha), maxalpha)
-    paraccel = par0 .- 2 .* alpha .* r .+ alpha^2 .* v
-    (alpha, paraccel)
-end
-
-function acceleratedemstep(input, par; kwargs...) 
-    (_, par1) = emstep(input, par; kwargs...)
-    (loglik2, par2) = emstep(input, par1; kwargs...)
-    (alpha, accelpar) = accelerate(par, par1, par2)
-    @info("Acceleration has α: $(alpha)")
-    if isapprox(alpha, -1)
-        @info("Skipping accelleration")
-        return (2, loglik2, par2)
-    end
-    (accelloglik, accelpar) = emstep(input, accelpar; kwargs...)
-    if accelloglik > loglik2
-        (3, accelloglik, accelpar)
-    else
-        @warn(
-            "Accelerated log-likelihood worse after stabilisation \
-            ($(accelloglik)<$(loglik2))), falling back to previous parameters"
-        )
-        (2, loglik2, par2)
-    end
-end
-
-function em(input, par; tol=1e-4, maxiter=100, noaccelerate=false, kwargs...)
+function em(input, par; tol=1e-4, maxiter=100, kwargs...)
     oldloglik = -Inf
     change = Inf
     iter = 0
@@ -68,13 +36,8 @@ function em(input, par; tol=1e-4, maxiter=100, noaccelerate=false, kwargs...)
     logliks = Float64[]
     pars = typeof(par)[]
     while change > tol && iter < maxiter
-        if noaccelerate
-            (loglik, par) = emstep(input, par; kwargs...)
-            iter += 1
-        else
-            (iters, loglik, par) = acceleratedemstep(input, par; kwargs...)
-            iter += iters
-        end
+        (loglik, par) = emstep(input, par; kwargs...)
+        iter += 1
         change = abs(loglik - oldloglik)
         @info("Finished EM iteration $(iter): logℓ=$(loglik) (Δ=$(change))")
         if loglik < oldloglik
