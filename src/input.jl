@@ -14,11 +14,6 @@ struct Beagle
     gl::Matrix{Gl}
 end
 
-samples(beagle::Beagle) = beagle.samples
-chr(beagle::Beagle) = beagle.chr
-positions(beagle::Beagle) = beagle.pos
-gl(beagle::Beagle) = beagle.gl
-
 struct BeagleRow 
     chr::String
     pos::UInt64

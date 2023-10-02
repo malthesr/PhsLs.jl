@@ -11,7 +11,6 @@ include("emcore.jl")
 
 @reexport using .Types
 @reexport using .Input
-@reexport using .EmCore
 
 module Phase
 
@@ -19,6 +18,7 @@ using Reexport
 
 using ..Utils
 using ..Types
+using ..Input
 using ..EmCore
 
 include("phase/parameters.jl")
@@ -43,6 +43,7 @@ using Reexport
 
 using ..Utils
 using ..Types
+using ..Input
 using ..EmCore
 
 include("admixture/parameters.jl")

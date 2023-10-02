@@ -26,9 +26,10 @@ Base.:+(x::EStep{T}, y::EStep{T}) where {T} =
 
 function estep end
 function mstep end
-emstep(input, par; kwargs...) = mstep(estep(input, par; kwargs...), par)
+emstep(input, par; ekwargs=Dict(), mkwargs=Dict()) =
+    mstep(estep(input, par; ekwargs...), par; mkwargs...)
 
-function em(input, par; tol=1e-4, maxiter=100, kwargs...)
+function em(input, par; tol=1e-4, maxiter=100, ekwargs=Dict(), mkwargs=Dict())
     oldloglik = -Inf
     change = Inf
     iter = 0
@@ -36,7 +37,7 @@ function em(input, par; tol=1e-4, maxiter=100, kwargs...)
     logliks = Float64[]
     pars = typeof(par)[]
     while change > tol && iter < maxiter
-        (loglik, par) = emstep(input, par; kwargs...)
+        (loglik, par) = emstep(input, par; ekwargs=ekwargs, mkwargs=mkwargs)
         iter += 1
         change = abs(loglik - oldloglik)
         @info("Finished EM iteration $(iter): logℓ=$(loglik) (Δ=$(change))")

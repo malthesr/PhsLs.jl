@@ -35,7 +35,21 @@ function clusterexpect!(e::Vec, ab::FwdBwdSite)
     end
 end
 
+function clusterexpect!(e::Mat, ab::FwdBwd)
+    (S, C, C) = size(ab)
+    @inbounds for s in 1:S
+        clusterexpect!(view(e, s, :), ab[s])
+    end
+end
+
 clusterexpect(ab::FwdBwdSite) = colsum(clusterpost(ab))
+
+function clusterexpect(ab::FwdBwd)
+    (S, C, C) = size(ab)
+    e = zeros(S, C)
+    clusterexpect!(view(e, :, :), ab)
+    e
+end
 
 function clusteralleleexpect!(e::Mat, gl::Gl, ab::FwdBwdSite, par::ParSite)
     C = clusters(par)

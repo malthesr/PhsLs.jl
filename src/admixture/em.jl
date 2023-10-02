@@ -2,9 +2,12 @@ module Em
 
 using ..Types
 using ..Utils
+using ..Input
 using ..Parameters
 using ..Posterior
 using ..EmCore
+
+import ...Phase
 
 struct Expect{A<:Arr3, M<:Mat}
     clusterpop::A
@@ -36,6 +39,22 @@ function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}
     newpar = Par(F, Q)
     protect!(newpar)
     (sum.total.loglik, newpar)
+end
+
+function EmCore.em(input::Beagle, phasepar::Phase.Par; K::Integer, seed=nothing, kwargs...)
+    (I, S) = size(input.gl)
+    (S, C) = size(phasepar)
+
+    if !isnothing(seed)
+        Random.seed!(seed)
+    end
+    par = parinit(I, S, C, K)
+
+    cf = Phase.clusterfreqs(phasepar)
+    clfn = (gl::GlVec) -> Phase.clusterliks(gl, cf, phasepar)
+    ekwargs = Dict(:clfn=>clfn)
+
+    EmCore.em(input.gl, par; ekwargs=ekwargs, kwargs...)
 end
 
 end
