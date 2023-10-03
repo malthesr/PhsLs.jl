@@ -30,7 +30,7 @@ Types.sites(par::Par) = size(par.F, 1)
 Types.inds(par::Par) = size(par.Q, 1)
 Types.clusters(par::Par) = size(par.F, 2)
 Types.populations(par::Par) = size(par.Q, 2)
-Base.size(par::Par) = size(par.F)
+Base.size(par::Par) = (inds(par), size(par.F)...)
 
 Types.sites(par::ParInd) = size(par.F, 1)
 Types.clusters(par::ParInd) = size(par.F, 2)

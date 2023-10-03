@@ -1,6 +1,7 @@
 module Posterior
 
-export clusterfreqs, dataclusterjoint, clusterpoppost, clusterpopexpect
+export clusterfreqs, dataclusterjoint, clusterpoppost,
+    clusterpopexpect, clusterpopexpect!
 
 using Base.Iterators: product
 

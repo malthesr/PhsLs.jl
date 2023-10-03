@@ -1,7 +1,8 @@
 module Utils
 
-export norm!, cnorm!, sumdrop, parmapreduce, outer, symouter, cnorm,
-    colsum, rowsum, colsum!, rowsum!
+export Option, norm!, cnorm!, sumdrop, colsum, rowsum
+
+const Option{T} = Union{T, Nothing}
 
 function norm!(x; dims=nothing)
     if isnothing(dims)

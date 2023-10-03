@@ -37,24 +37,24 @@ include("phase/misc.jl")
 
 end
 
-# module Admixture
+module Admixture
 
-# using Reexport
+using Reexport
 
-# using ..Utils
-# using ..Types
-# using ..Input
-# using ..EmCore
+using ..Utils
+using ..Types
+using ..Input
+using ..EmCore
 
-# include("admixture/parameters.jl")
-# include("admixture/posterior.jl")
-# include("admixture/em.jl")
+include("admixture/parameters.jl")
+include("admixture/posterior.jl")
+include("admixture/em.jl")
 
-# @reexport using .Parameters
-# @reexport using .Posterior
-# @reexport using .Em
+@reexport using .Parameters
+@reexport using .Posterior
+@reexport using .Em
 
-# end
+end
 
 # module Joint
 

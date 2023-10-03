@@ -11,36 +11,89 @@ using ..EmCore
 
 import ...Phase
 
-struct Expect{A<:Arr3, M<:Mat}
-    clusterpop::A
-    pop::M
+EmCore.workspacetype(::Type{Par{M, V}}) where {M, V} = Workspace{Expect, Buf}
+
+struct Expect
+    clusterpop::Array{Float64, 3}
+    pop::Matrix{Float64}
 end
 
-Base.:+(x::Expect{A, M}, y::Expect{A, M}) where {A, M} =
-    Expect(x.clusterpop .+ y.clusterpop, vcat(x.pop, y.pop))
-
-function EmCore.estep(cl::Arr3, par::ParInd)
-    (loglik, clusterpop) = clusterpopexpect(cl, par)
-    pop = sumdrop(clusterpop, dims=(1, 2))
-    pop = reshape(pop, (1, length(pop)))
-    EStep(Expect(clusterpop, pop), loglik)
+function EmCore.create(::Type{Expect}, par::Par) 
+    (I, S, C, K) = size(par)
+    Expect(zeros(S, C, K), zeros(I, K))
 end
 
-function EmCore.estep(gl::GlMat, par::Par; clfn::Function)
-    it = enumerate(zip(eachind(gl), eachind(par)))
-    fn = ((i, (gl, par),),) -> Sum(estep(clfn(gl), par))
-    parmapreduce(fn, +, it)
+function EmCore.clear!(e::Expect)
+    e.clusterpop .= 0.0
+    e.pop .= 0.0
 end
 
-function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par) where {A, M}
-    (S, C, K) = size(par)
-    expect = sum.total.expect
-    F = expect.clusterpop
-    norm!(F, dims=1)
-    Q = expect.pop ./ S
-    newpar = Par(F, Q)
-    protect!(newpar)
-    (sum.total.loglik, newpar)
+struct ExpectInd
+    clusterpop::Array{Float64, 3}
+    pop::Vector{Float64}
+end
+
+function EmCore.create(::Type{ExpectInd}, par::Par) 
+    (I, S, C, K) = size(par)
+    ExpectInd(zeros(S, C, K), zeros(K))
+end
+
+function EmCore.clear!(e::ExpectInd)
+    e.clusterpop .= 0.0
+    e.pop .= 0.0
+end
+
+struct Buf
+    cl::Array{Float64, 3}
+    ab::Phase.FwdBwd
+    expect::ExpectInd
+end
+
+function EmCore.create(::Type{Buf}, par::Par)
+    (I, S, C, K) = size(par)
+    Buf(zeros(S, C, C), zeros(Phase.FwdBwd, S, C), create(ExpectInd, par))
+end
+
+function EmCore.clear!(b::Buf)
+    clear!(b.expect)
+end
+
+function EmCore.estep!(buf::Buf, par::ParInd)
+    loglik = clusterpopexpect!(buf.expect.clusterpop, buf.cl, par)
+    buf.expect.pop .= sumdrop(buf.expect.clusterpop, dims=(1, 2))
+    loglik
+end
+
+function add!(sum::Sum{Expect}, expect::ExpectInd, i::Integer)
+    sum.expect.clusterpop .+= expect.clusterpop
+    sum.expect.pop[i, :] .= expect.pop
+    sum.n += 1
+end
+
+function EmCore.estep!(ws::Workspace, gl::GlMat, par::Par; clfn!::Function, kwargs...)
+    (I, S, C, K) = size(par)
+    loglik = 0.0
+    lck = ReentrantLock()
+    @assert(length(ws.bufs) == Threads.nthreads())
+    Threads.@threads :static for i = 1:I
+        buf = ws.bufs[Threads.threadid()]
+        clear!(buf)
+        clfn!(buf, ind(gl, i))
+        ll = estep!(buf, par[i]; kwargs...)
+        lock(lck) do
+            loglik += ll
+            add!(ws.sum, buf.expect, i)
+        end
+    end
+    loglik
+end
+
+function EmCore.mstep!(par::Par, sum::Sum{Expect})
+    (I, S, C, K) = size(par)
+    par.F .= sum.expect.clusterpop
+    norm!(par.F, dims=1)
+    par.Q .= sum.expect.pop ./ S
+    protect!(par)
 end
 
 function EmCore.em(input::Beagle, phasepar::Phase.Par; K::Integer, seed=nothing, kwargs...)
@@ -53,8 +106,11 @@ function EmCore.em(input::Beagle, phasepar::Phase.Par; K::Integer, seed=nothing,
     par = parinit(I, S, C, K)
 
     cf = Phase.clusterfreqs(phasepar)
-    clfn = (gl::GlVec) -> Phase.clusterliks(gl, cf, phasepar)
-    ekwargs = Dict(:clfn=>clfn)
+    clfn! = (buf::Buf, gl::GlVec) -> begin
+        Phase.forwardbackward!(buf.ab, gl, phasepar)
+        Phase.clusterliks!(buf.cl, buf.ab, cf)
+    end
+    ekwargs = Dict(:clfn! => clfn!)
 
     EmCore.em(input.gl, par; ekwargs=ekwargs, kwargs...)
 end
