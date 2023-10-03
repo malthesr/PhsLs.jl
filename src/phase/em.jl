@@ -10,43 +10,77 @@ using ..ForwardBackward
 using ..Posterior
 using ..EmCore
 
-struct Expect{A<:Arr3, M<:Mat}
-    clusterallele::A
-    jumpcluster::M
+EmCore.workspacetype(::Type{Par{M, V}}) where {M, V} = Workspace{Expect, Buf}
+
+struct Expect
+    clusterallele::Array{Float64, 3}
+    jumpcluster::Matrix{Float64}
 end
 
-Base.:+(x::Expect{A, M}, y::Expect{A, M}) where {A, M} =
-    Expect(x.clusterallele .+ y.clusterallele, x.jumpcluster .+ y.jumpcluster)
+function EmCore.create(::Type{Expect}, par::Par) 
+    (S, C) = size(par)
+    Expect(zeros(S, C, 2), zeros(S, C))
+end
 
-function EmCore.estep(gl::GlVec, par::Par; oldpi=false)
-    ab = forwardbackward(gl, par)
-    clusterallele = clusteralleleexpect(gl, ab, par)
+function EmCore.clear!(e::Expect)
+    e.clusterallele .= 0.0
+    e.jumpcluster .= 0.0
+end
+
+struct Buf
+    ab::FwdBwd
+    expect::Expect
+end
+
+function EmCore.create(::Type{Buf}, par::Par)
+    (S, C) = size(par)
+    Buf(zeros(FwdBwd, S, C), create(Expect, par))
+end
+
+function EmCore.clear!(b::Buf)
+    clear!(b.expect)
+end
+
+function EmCore.estep!(buf::Buf, gl::GlVec, par::Par; oldpi=false)
+    forwardbackward!(buf.ab, gl, par)
+    clusteralleleexpect!(buf.expect.clusterallele, gl, buf.ab, par)
     if oldpi
-        jumpcluster = clusterexpect(ab)
+        clusterexpect!(buf.expect.jumpcluster, buf.ab)
     else
-        jumpcluster = jumpclusterexpect(gl, ab, par)
+        jumpclusterexpect!(buf.expect.jumpcluster, gl, buf.ab, par)
     end
-    loglik = loglikelihood(ab)
-    EStep(Expect(clusterallele, jumpcluster), loglik)
+    loglikelihood(buf.ab)
 end
 
-EmCore.estep(gl::GlMat, par::Par; kwargs...) =
-    parmapreduce(gl -> Sum(estep(gl, par; kwargs...)), +, eachind(gl))
-
-function EmCore.mstep(sum::Sum{EStep{Expect{A, M}}}, par::Par; fixedrecomb=false) where {A, M}
-    I = sum.n
-    expect = sum.total.expect
-    P = expect.clusterallele[:, :, 2] ./ sumdrop(expect.clusterallele, dims=3)
-    if !fixedrecomb
-        er = [0.; 1 .- rowsum(expect.jumpcluster[2:end, :]) ./ I]
-    else
-        er = par.er
+function EmCore.estep!(ws::Workspace, gl::GlMat, par::Par; kwargs...)
+    I = inds(gl)
+    (S, C) = size(par)
+    lk = ReentrantLock()
+    @assert(length(ws.bufs) == Threads.nthreads())
+    Threads.@threads :static for i = 1:I
+        buf = ws.bufs[Threads.threadid()]
+        clear!(buf)
+        loglik = estep!(buf, ind(gl, i), par; kwargs...)
+        lock(lk) do
+            ws.estep.sum.clusterallele .+= buf.expect.clusterallele
+            ws.estep.sum.jumpcluster .+= buf.expect.jumpcluster
+            ws.estep.n += 1
+            ws.estep.loglik += loglik
+        end
     end
-    F = expect.jumpcluster
-    norm!(F, dims=1)
-    newpar = Par(P, F, er)
-    protect!(newpar)
-    (sum.total.loglik, newpar)
+end
+
+function EmCore.mstep!(par::Par, estep::EStep{Expect}; fixedrecomb=false)
+    I = estep.n
+    expect = estep.sum
+    par.P .= expect.clusterallele[:, :, 2] ./ sumdrop(expect.clusterallele, dims=3)
+    if !fixedrecomb
+        par.er .= [0.; 1 .- rowsum(expect.jumpcluster[2:end, :]) ./ I]
+    end
+    par.F .= expect.jumpcluster
+    norm!(par.F, dims=1)
+    protect!(par)
+    estep.loglik
 end
 
 function EmCore.em(input::Beagle; C::Integer, seed=nothing, fixedrecomb=false, oldpi=false, kwargs...)

@@ -1,6 +1,7 @@
 module ForwardBackward
 
-export FwdBwd, FwdBwdSite, forwardbackward, fwd, bwd, scaling, loglikelihood
+export FwdBwd, FwdBwdSite, forwardbackward, forwardbackward!,
+    fwd, bwd, scaling, loglikelihood
 
 using ..Utils
 using ..Types
@@ -11,6 +12,10 @@ struct FwdBwd{A<:Arr3, V<:Vec}
     fwd::A
     bwd::A
     scaling::V
+end
+
+function Base.zeros(::Type{FwdBwd}, S::Integer, C::Integer)
+    FwdBwd(zeros(S, C, C), zeros(S, C, C), zeros(S))
 end
 
 struct FwdBwdSite{M<:Mat}
@@ -40,10 +45,16 @@ Types.clusters(ab::FwdBwdSite) = size(fwd(ab), 1)
 
 loglikelihood(ab::FwdBwd) = reduce(+, log.(scaling(ab)))
 
+function forwardbackward!(ab::FwdBwd, gl::GlVec, par::Par)
+    forward!(ab.fwd, ab.scaling, gl, par)
+    backward!(ab.bwd, gl, ab.scaling, par)
+end
+
 function forwardbackward(gl::GlVec, par::Par)
-    c, a = forward(gl, par)
-    b = backward(gl, c, par)
-    FwdBwd(a, b, c)
+    (S, C) = size(par)
+    ab = zeros(FwdBwd, S, C)
+    forwardbackward!(ab, gl, par)
+    ab
 end
 
 mutable struct FwdSums{V<:Vec}
@@ -85,10 +96,8 @@ function forward!(a::Mat, prev::Mat, prevsums::FwdSums, gl::Gl, par::ParSite)
     cnorm!(a)
 end
 
-function forward(gl::GlVec, par::Par)
+function forward!(a::Arr3, c::Vec, gl::GlVec, par::Par)
     (S, C) = size(par)
-    a = zeros(Float64, S, C, C)
-    c = zeros(Float64, S)
     c[1] = forwardinit!(view(a, 1, :, :), gl[1], par[1])
     prevsums = zeros(FwdSums, C)
     for s in 2:S
@@ -97,6 +106,13 @@ function forward(gl::GlVec, par::Par)
         forwardsums!(prevsums, prev)
         c[s] = forward!(curr, prev, prevsums, gl[s], par[s])
     end
+end
+
+function forward(gl::GlVec, par::Par)
+    (S, C) = size(par)
+    a = zeros(Float64, S, C, C)
+    c = zeros(Float64, S)
+    forward!(a, c, gl, par)
     (c, a)
 end
 
@@ -141,9 +157,8 @@ function backward!(b::Mat, nextsums::BwdSums, c::Float64, par::ParSite)
     end
 end
 
-function backward(gl::GlVec, c::Vec, par::Par)
+function backward!(b::Arr3, gl::GlVec, c::Vec, par::Par)
     (S, C) = size(par)
-    b = zeros(Float64, S, C, C)
     b[S, :, :] .= 1.0
     nextsums = zeros(BwdSums, C)
     for s in reverse(2:S)
@@ -152,6 +167,12 @@ function backward(gl::GlVec, c::Vec, par::Par)
         backwardsums!(nextsums, next, gl[s], par[s])
         backward!(curr, nextsums, c[s], par[s])
     end
+end
+
+function backward(gl::GlVec, c::Vec, par::Par)
+    (S, C) = size(par)
+    b = zeros(Float64, S, C, C)
+    backward!(b, gl, c, par)
     b
 end
 

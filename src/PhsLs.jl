@@ -37,47 +37,47 @@ include("phase/misc.jl")
 
 end
 
-module Admixture
+# module Admixture
 
-using Reexport
+# using Reexport
 
-using ..Utils
-using ..Types
-using ..Input
-using ..EmCore
+# using ..Utils
+# using ..Types
+# using ..Input
+# using ..EmCore
 
-include("admixture/parameters.jl")
-include("admixture/posterior.jl")
-include("admixture/em.jl")
+# include("admixture/parameters.jl")
+# include("admixture/posterior.jl")
+# include("admixture/em.jl")
 
-@reexport using .Parameters
-@reexport using .Posterior
-@reexport using .Em
+# @reexport using .Parameters
+# @reexport using .Posterior
+# @reexport using .Em
 
-end
+# end
 
-module Joint
+# module Joint
 
-using Reexport
+# using Reexport
 
-using ..Utils
-using ..Types
-using ..EmCore
+# using ..Utils
+# using ..Types
+# using ..EmCore
 
-include("joint/parameters.jl")
-include("joint/emission.jl")
-include("joint/transition.jl")
-include("joint/forwardbackward.jl")
-include("joint/posterior.jl")
-include("joint/em.jl")
+# include("joint/parameters.jl")
+# include("joint/emission.jl")
+# include("joint/transition.jl")
+# include("joint/forwardbackward.jl")
+# include("joint/posterior.jl")
+# include("joint/em.jl")
 
-@reexport using .Parameters
-@reexport using .Emission
-@reexport using .Transition
-@reexport using .ForwardBackward
-@reexport using .Posterior
-@reexport using .Em
+# @reexport using .Parameters
+# @reexport using .Emission
+# @reexport using .Transition
+# @reexport using .ForwardBackward
+# @reexport using .Posterior
+# @reexport using .Em
 
-end
+# end
 
 end
