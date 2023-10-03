@@ -1,5 +1,7 @@
 module Em
 
+using Random
+
 using ..Types
 using ..Utils
 using ..Input
@@ -55,6 +57,23 @@ function EmCore.em(input::Beagle, phasepar::Phase.Par; K::Integer, seed=nothing,
     ekwargs = Dict(:clfn=>clfn)
 
     EmCore.em(input.gl, par; ekwargs=ekwargs, kwargs...)
+end
+
+function EmCore.accelerate(par0::Par, par1::Par, par2::Par; minalpha=1, maxalpha=4)
+    (F0, Q0) = (par0.F, par0.Q)
+    (F1, Q1) = (par1.F, par1.Q)
+    (F2, Q2) = (par2.F, par2.Q)
+    ss(x) = sum(x.^2)
+    rss(x, y) = ss(x .- y)
+    alpha = (rss(F1, F0) + rss(Q1, Q0)) / 
+        (ss(F2 - 2 * F1 + F0) + ss(Q2 - 2 * Q1 + Q0))
+    alpha = max(minalpha, sqrt(alpha))
+    alpha = min(maxalpha, sqrt(alpha))
+    @info("Acceleration has α: $(alpha)")
+    accel(p0, p1, p2) = p0 + 2 * alpha * (p1 - p0) + alpha^2 * (p2 - 2 * p1 + p0)
+    paraccel = Par(accel(F0, F1, F2), accel(Q0, Q1, Q2))
+    protect!(paraccel)
+    (alpha, paraccel)
 end
 
 end

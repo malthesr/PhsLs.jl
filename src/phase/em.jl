@@ -57,7 +57,7 @@ function EmCore.em(input::Beagle; C::Integer, seed=nothing, fixedrecomb=false, o
 
     ekwargs = Dict(:oldpi=>oldpi)
     mkwargs = Dict(:fixedrecomb=>fixedrecomb)
-    EmCore.em(input.gl, par; ekwargs=ekwargs, mkwargs=mkwargs, kwargs...)
+    EmCore.em(input.gl, par; accel=false, ekwargs=ekwargs, mkwargs=mkwargs, kwargs...)
 end
 
 end
