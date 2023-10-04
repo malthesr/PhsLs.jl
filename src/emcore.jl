@@ -122,7 +122,7 @@ function acceleratedemstep(input, par; ws::Workspace, ekwargs, mkwargs, kwargs..
     if accelloglik > loglik2
         Acceleration(accelloglik, accelpar, 3)
     else
-        @warn(
+        @info(
             "Accelerated log-likelihood worse after stabilisation " *
             "($(accelloglik)<$(loglik2))), falling back to previous parameters"
         )

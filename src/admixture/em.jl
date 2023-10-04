@@ -96,14 +96,18 @@ function EmCore.mstep!(par::Par, sum::Sum{Expect})
     protect!(par)
 end
 
-function EmCore.em(input::Beagle, phasepar::Phase.Par; K::Integer, seed=nothing, kwargs...)
-    (I, S) = size(input.gl)
-    (S, C) = size(phasepar)
+function EmCore.em(beagle::Beagle, phasepar::Phase.Par; K::Integer, initpar=nothing, seed=nothing, kwargs...)
+    gl = reduce(hcat, getfield.(beagle.chrs, :gl))
+    (I, S) = size(gl)
+    (S2, C) = size(phasepar)
+    @assert(S == S2)
 
-    if !isnothing(seed)
+    if !isnothing(initpar)
+        par = initpar
+    elseif !isnothing(seed)
         Random.seed!(seed)
+        par = parinit(I, S, C, K)
     end
-    par = parinit(I, S, C, K)
 
     cf = Phase.clusterfreqs(phasepar)
     clfn! = (buf::Buf, gl::GlVec) -> begin
@@ -112,7 +116,7 @@ function EmCore.em(input::Beagle, phasepar::Phase.Par; K::Integer, seed=nothing,
     end
     ekwargs = Dict(:clfn! => clfn!)
 
-    EmCore.em(input.gl, par; ekwargs=ekwargs, kwargs...)
+    EmCore.em(gl, par; ekwargs=ekwargs, kwargs...)
 end
 
 function EmCore.accelerate(par0::Par, par1::Par, par2::Par; minalpha=1, maxalpha=4)
