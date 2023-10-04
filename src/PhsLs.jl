@@ -8,9 +8,11 @@ include("utils.jl")
 include("types.jl")
 include("input.jl")
 include("emcore.jl")
+include("plotting.jl")
 
 @reexport using .Types
 @reexport using .Input
+@reexport using .Plotting
 
 module Phase
 
