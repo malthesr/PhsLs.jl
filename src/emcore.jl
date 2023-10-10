@@ -5,7 +5,7 @@ using Logging
 using ..Utils
 
 export Sum, Workspace, create, clear!, add!, workspacetype,
-    estep!, mstep, mstep!, emstep, emstep!, em, accelerate
+    estep!, mstep, mstep!, emstep, emstep!, embase, accelerate
 
 function create end
 function clear end
@@ -69,7 +69,7 @@ function emstep!(par, input; ws::Option{Workspace}=nothing, ekwargs=Dict(), mkwa
     loglik
 end
 
-function em(input,
+function embase(input,
             par;
             tol=1e-4,
             maxiter=100,
@@ -111,8 +111,11 @@ end
 function accelerate end
 
 function acceleratedemstep(input, par; ws::Workspace, ekwargs, mkwargs, kwargs...) 
+    clear!(ws)
     (_, par1) = emstep(input, par, ws=ws, ekwargs=ekwargs, mkwargs=mkwargs)
+    clear!(ws)
     (loglik2, par2) = emstep(input, par1, ws=ws, ekwargs=ekwargs, mkwargs=mkwargs)
+    clear!(ws)
     (alphas, accelpar) = accelerate(par, par1, par2, kwargs...)
     if all(isapprox.(alphas, -1))
         @info("Skipping acceleration")

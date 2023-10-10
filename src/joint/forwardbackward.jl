@@ -1,6 +1,6 @@
 module ForwardBackward
 
-export FwdBwd, FwdBwdSite, forwardbackward, loglikelihood, fwd, bwd, scaling
+export FwdBwd, FwdBwdSite, forwardbackward, forwardbackward!, loglikelihood
 
 using ..Utils
 using ..Types
@@ -13,6 +13,10 @@ struct FwdBwd{A<:Arr5, V<:Vec}
     scaling::V
 end
 
+function Base.zeros(::Type{FwdBwd}, S::Integer, C::Integer, K::Integer)
+    FwdBwd(zeros(S, C, C, K, K), zeros(S, C, C, K, K), zeros(S))
+end
+
 struct FwdBwdSite{A<:Arr4}
     fwd::A
     bwd::A
@@ -20,28 +24,26 @@ struct FwdBwdSite{A<:Arr4}
 end
 
 @inline Base.getindex(ab::FwdBwd, s::Integer) =
-    FwdBwdSite(fwd(ab, s), bwd(ab, s), scaling(ab, s))
+    FwdBwdSite(
+        view(ab.fwd, s, :, :, :, :),
+        view(ab.bwd, s, :, :, :, :),
+        ab.scaling[s]
+    )
 
-@inline fwd(ab::FwdBwd) = view(ab.fwd, :, :, :, :, :)
-@inline fwd(ab::FwdBwd, s::Integer) = view(ab.fwd, s, :, :, :, :)
-@inline bwd(ab::FwdBwd) = view(ab.bwd, :, :, :, :, :)
-@inline bwd(ab::FwdBwd, s::Integer) = view(ab.bwd, s, :, :, :, :)
-@inline scaling(ab::FwdBwd) = view(ab.scaling, :)
-@inline scaling(ab::FwdBwd, s::Integer) = ab.scaling[s]
-
-@inline fwd(ab::FwdBwdSite) = ab.fwd
-@inline bwd(ab::FwdBwdSite) = ab.bwd
-@inline scaling(ab::FwdBwdSite) = ab.scaling
-
-@inline Types.sites(ab::FwdBwd) = length(scaling(ab))
-@inline Types.clusters(ab::FwdBwd) = size(fwd(ab), 2)
-@inline Types.populations(ab::FwdBwd) = size(fwd(ab), 4)
+@inline Types.sites(ab::FwdBwd) = length(scaling(ab.scaling))
+@inline Types.clusters(ab::FwdBwd) = size(ab.fwd, 2)
+@inline Types.populations(ab::FwdBwd) = size(ab.fwd, 4)
 @inline Types.eachsite(ab::FwdBwd) = map(s -> ab[s], 1:sites(ab))
 
-@inline Types.clusters(ab::FwdBwdSite) = size(fwd(ab), 1)
-@inline Types.populations(ab::FwdBwdSite) = size(fwd(ab), 3)
+@inline Types.clusters(ab::FwdBwdSite) = size(ab.fwd, 1)
+@inline Types.populations(ab::FwdBwdSite) = size(ab.fwd, 3)
 
-loglikelihood(ab::FwdBwd) = reduce(+, log.(scaling(ab)))
+loglikelihood(ab::FwdBwd) = reduce(+, log.(ab.scaling))
+
+function forwardbackward!(ab::FwdBwd, gl::GlVec, par::ParInd)
+    forward!(ab.fwd, ab.scaling, gl, par)
+    backward!(ab.bwd, gl, ab.scaling, par)
+end
 
 function forwardbackward(gl::GlVec, par::ParInd)
     c, a = forward(gl, par)
@@ -127,10 +129,8 @@ function forwardinit!(a::Arr4, gl::Gl, par::ParSite)
     cnorm!(a)
 end
 
-function forward(gl::GlVec, par::ParInd)
+function forward!(a::Arr5, c::Vec, gl::GlVec, par::ParInd)
     (S, C, K) = size(par)
-    a = zeros(S, C, C, K, K)
-    c = zeros(S)
     c[1] = forwardinit!(view(a, 1, :, :, :, :), gl[1], par[1])
     prevsums = zeros(FwdSums, C, K)
     @inbounds for s in 2:S
@@ -139,6 +139,13 @@ function forward(gl::GlVec, par::ParInd)
         forwardsums!(prevsums, prev)
         c[s] = forward!(curr, prev, prevsums, gl[s], par[s])
     end
+end
+
+function forward(gl::GlVec, par::ParInd)
+    (S, C, K) = size(par)
+    a = zeros(S, C, C, K, K)
+    c = zeros(S)
+    forward!(a, c, gl, par)
     (c, a)
 end
 
@@ -209,9 +216,8 @@ function backward!(b::Arr4, nextsums::BwdSums, c::Float64, par::ParSite)
     end
 end
 
-function backward(gl::GlVec, c::Vec, par::ParInd)
+function backward!(b::Arr5, gl::GlVec, c::Vec, par::ParInd)
     (S, C, K) = size(par)
-    b = zeros(S, C, C, K, K)
     b[S, :, :, :, :] .= 1
     nextsums = zeros(BwdSums, C, K)
     for s in reverse(2:S)
@@ -220,6 +226,12 @@ function backward(gl::GlVec, c::Vec, par::ParInd)
         backwardsums!(nextsums, next, gl[s], par[s])
         backward!(curr, nextsums, c[s], par[s])
     end
+end
+
+function backward(gl::GlVec, c::Vec, par::ParInd)
+    (S, C, K) = size(par)
+    b = zeros(S, C, C, K, K)
+    backward!(b, gl, c, par)
     b
 end
 

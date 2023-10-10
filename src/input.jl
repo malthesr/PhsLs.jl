@@ -1,11 +1,11 @@
 module Input
 
-export Beagle
+export Beagle, joingl
 
 using Base.Iterators: partition
 using GZip: gzopen, GZipStream
 
-using ..Types: Gl
+using ..Types: Gl, sites
 using ..Utils
 
 struct BeagleRow
@@ -36,6 +36,12 @@ struct Beagle
     samples::Vector{String}
     chrs::Vector{BeagleChr}
 end
+
+Base.size(beagle::Beagle) =
+    (length(beagle.samples), sum(chr -> sites(chr.gl), beagle.chrs))
+
+joingl(beagle::Beagle) =
+    reduce(hcat, getfield.(beagle.chrs, :gl))
 
 mutable struct BeagleReader
     io::GZipStream

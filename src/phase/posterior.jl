@@ -13,23 +13,22 @@ using ..ForwardBackward
 using ..ForwardBackward: FwdSums, forwardsums!
 
 function clusterpost!(p::Mat, ab::FwdBwdSite)
-    p .= fwd(ab) .* bwd(ab)
+    p .= ab.fwd .* ab.bwd
 end
 
 function clusterpost!(p::Arr3, ab::FwdBwd)
     (S, C, C) = size(ab)
-    p = zeros(S, C, C)
     @inbounds for s in 1:S
         curr = view(p, s, :, :)
         clusterpost!(curr, ab[s])
     end
 end
 
-clusterpost(ab::FwdBwdSite) = fwd(ab) .* bwd(ab)
-clusterpost(ab::FwdBwd) = fwd(ab) .* bwd(ab)
+clusterpost(ab::FwdBwdSite) = ab.fwd .* ab.bwd
+clusterpost(ab::FwdBwd) = ab.fwd .* ab.bwd
 
 function clusterexpect!(e::Vec, ab::FwdBwdSite)
-    a, b = (fwd(ab), bwd(ab))
+    a, b = (ab.fwd, ab.bwd)
     @inbounds for (z1, z2) in zzs(clusters(ab))
         e[z1] += a[z1, z2] * b[z1, z2]
     end
@@ -54,7 +53,7 @@ end
 function clusteralleleexpect!(e::Mat, gl::Gl, ab::FwdBwdSite, par::ParSite)
     C = clusters(par)
     @inbounds for (z1, z2) in zzs(C)
-        k = fwd(ab)[z1, z2] * bwd(ab)[z1, z2] / emission(gl, Z(z1, z2), par.P)
+        k = ab.fwd[z1, z2] * ab.bwd[z1, z2] / emission(gl, Z(z1, z2), par.P)
         p1, p2 = (par.P[z1], par.P[z2])
         e[z1, 1] += k * (1 - p1) * (gl[1] * (1 - p2) + gl[2] .* p2)
         e[z1, 2] += k * p1 * (gl[2] * (1 .- p2) + gl[3] .* p2)
@@ -95,13 +94,13 @@ function jumpclusterexpect!(e::Mat, gl::GlVec, ab::FwdBwd, par::Par)
     prevsums = zeros(FwdSums, C)
     for s in 2:S
         curr = view(e, s, :)
-        forwardsums!(prevsums, fwd(ab[s - 1]))
+        forwardsums!(prevsums, ab[s - 1].fwd)
         jumpclusterexpect!(
             curr,
             gl[s],
             prevsums,
-            bwd(ab[s]),
-            scaling(ab[s]),
+            ab[s].bwd,
+            ab[s].scaling,
             par[s]
         )
     end

@@ -77,16 +77,27 @@ Base.size(par::ParSite) = (clusters(par), populations(par))
 Types.eachind(par::Par) = map(i -> par[i], 1:inds(par))
 Types.eachsite(par::ParInd) = map(s -> par[s], 1:sites(par))
 
-function parinit(I::Integer, C::Integer, K::Integer, positions)
-    S = length(positions)
+function jumpinit(positions::AbstractVector{<:AbstractVector{<:Integer}})
+    er = Float64[]
+    et = Float64[]
+    for pos in positions
+        d = diff(pos)
+        append!(er, [1; exp.(-(d ./ 1e6))])
+        append!(et, [1; exp.(0.05 .* -(d ./ 1e6))])
+    end
+    (er, et)
+end
+
+jumpinit(positions::AbstractVector{<:Integer}) =
+    jumpinit([positions])
+
+function parinit(I::Integer, S::Integer, C::Integer, K::Integer, positions)
     P = rand(Float64, (S, C))
     F = rand(Float64, (S, C, K))
     norm!(F, dims=(1, 3))
     Q = rand(Float64, (I, K))
     norm!(Q, dims=1)
-    d = diff(positions)
-    er = [1; exp.(-(d ./ 1e6))]
-    et = [1; exp.(0.05 .* -(d ./ 1e6))]
+    (er, et) = jumpinit(positions)
     Par(P, F, Q, er, et)
 end
 

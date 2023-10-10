@@ -1,5 +1,7 @@
 module Em
 
+export em
+
 using Logging
 using Random
 
@@ -88,7 +90,7 @@ function EmCore.mstep!(par::Par, sum::Sum{Expect}; fixedrecomb=false)
     protect!(par)
 end
 
-function EmCore.em(beagle::Beagle; C::Integer, seed=nothing, fixedrecomb=false, oldpi=false, kwargs...)
+function em(beagle::Beagle; C::Integer, seed=nothing, fixedrecomb=false, oldpi=false, kwargs...)
     if !isnothing(seed)
         Random.seed!(seed)
     end
@@ -102,7 +104,7 @@ function EmCore.em(beagle::Beagle; C::Integer, seed=nothing, fixedrecomb=false, 
         @info("Running chromosome $(chr.chr)")
 
         init = parinit(C, chr.pos)
-        (chrloglik, chrpar) = EmCore.em(
+        (chrloglik, chrpar) = embase(
             chr.gl,
             init;
             accel=false,

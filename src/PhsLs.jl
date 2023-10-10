@@ -58,28 +58,27 @@ include("admixture/em.jl")
 
 end
 
-# module Joint
+module Joint
 
-# using Reexport
+using Reexport
 
-# using ..Utils
-# using ..Types
-# using ..EmCore
+using ..Utils
+using ..Types
+using ..Input
+using ..EmCore
 
-# include("joint/parameters.jl")
-# include("joint/emission.jl")
-# include("joint/transition.jl")
-# include("joint/forwardbackward.jl")
-# include("joint/posterior.jl")
-# include("joint/em.jl")
+include("joint/parameters.jl")
+include("joint/emission.jl")
+include("joint/forwardbackward.jl")
+include("joint/posterior.jl")
+include("joint/em.jl")
 
-# @reexport using .Parameters
-# @reexport using .Emission
-# @reexport using .Transition
-# @reexport using .ForwardBackward
-# @reexport using .Posterior
-# @reexport using .Em
+@reexport using .Parameters
+@reexport using .Emission
+@reexport using .ForwardBackward
+@reexport using .Posterior
+@reexport using .Em
 
-# end
+end
 
 end

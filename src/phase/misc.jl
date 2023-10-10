@@ -12,7 +12,7 @@ using ..Posterior
 function clusterliks!(cl::Mat, ab::FwdBwdSite, cf::Vec; mincl=1e-12)
     C = clusters(ab)
     @inbounds for (z1, z2) in zzs(C)
-        cl[z1, z2] = fwd(ab)[z1, z2] * bwd(ab)[z1, z2] / (cf[z1] * cf[z2])
+        cl[z1, z2] = ab.fwd[z1, z2] * ab.bwd[z1, z2] / (cf[z1] * cf[z2])
     end
     clamp!(cl, mincl, 1 - mincl)
     norm!(cl)

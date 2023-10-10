@@ -1,7 +1,6 @@
 module ForwardBackward
 
-export FwdBwd, FwdBwdSite, forwardbackward, forwardbackward!,
-    fwd, bwd, scaling, loglikelihood
+export FwdBwd, FwdBwdSite, forwardbackward, forwardbackward!, loglikelihood
 
 using ..Utils
 using ..Types
@@ -24,7 +23,7 @@ struct FwdBwdSite{M<:Mat}
     scaling::Float64
 end
 
-Base.size(ab::FwdBwd) = size(fwd(ab))
+Base.size(ab::FwdBwd) = size(ab.fwd)
 function Base.getindex(ab::FwdBwd, s::Integer)
     FwdBwdSite(
         view(ab.fwd, s, :, :), 
@@ -33,17 +32,13 @@ function Base.getindex(ab::FwdBwd, s::Integer)
     )
 end
 
-@inline fwd(ab) = ab.fwd
-@inline bwd(ab) = ab.bwd
-@inline scaling(ab) = ab.scaling
-
-Types.sites(ab::FwdBwd) = length(scaling(ab))
-Types.clusters(ab::FwdBwd) = size(fwd(ab), 2)
+Types.sites(ab::FwdBwd) = length(ab.scaling)
+Types.clusters(ab::FwdBwd) = size(ab.fwd, 2)
 
 Types.eachsite(ab::FwdBwd) = map(s -> ab[s], 1:sites(ab))
-Types.clusters(ab::FwdBwdSite) = size(fwd(ab), 1)
+Types.clusters(ab::FwdBwdSite) = size(ab.fwd, 1)
 
-loglikelihood(ab::FwdBwd) = reduce(+, log.(scaling(ab)))
+loglikelihood(ab::FwdBwd) = reduce(+, log.(ab.scaling))
 
 function forwardbackward!(ab::FwdBwd, gl::GlVec, par::Par)
     forward!(ab.fwd, ab.scaling, gl, par)

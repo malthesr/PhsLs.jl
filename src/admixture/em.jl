@@ -1,5 +1,7 @@
 module Em
 
+export em
+
 using Random
 
 using ..Types
@@ -88,16 +90,18 @@ function EmCore.estep!(ws::Workspace, gl::GlMat, par::Par; clfn!::Function, kwar
     loglik
 end
 
-function EmCore.mstep!(par::Par, sum::Sum{Expect})
+function EmCore.mstep!(par::Par, sum::Sum{Expect}; fixedQ=false)
     (I, S, C, K) = size(par)
     par.F .= sum.expect.clusterpop
     norm!(par.F, dims=1)
-    par.Q .= sum.expect.pop ./ S
+    if !fixedQ
+        par.Q .= sum.expect.pop ./ S
+    end
     protect!(par)
 end
 
-function EmCore.em(beagle::Beagle, phasepar::Phase.Par; K::Integer, initpar=nothing, seed=nothing, kwargs...)
-    gl = reduce(hcat, getfield.(beagle.chrs, :gl))
+function em(beagle::Beagle, phasepar::Phase.Par; K::Integer, initpar=nothing, seed=nothing, fixedQ=false, kwargs...)
+    gl = joingl(beagle)
     (I, S) = size(gl)
     (S2, C) = size(phasepar)
     @assert(S == S2)
@@ -115,8 +119,9 @@ function EmCore.em(beagle::Beagle, phasepar::Phase.Par; K::Integer, initpar=noth
         Phase.clusterliks!(buf.cl, buf.ab, cf)
     end
     ekwargs = Dict(:clfn! => clfn!)
+    mkwargs = Dict(:fixedQ=>fixedQ)
 
-    EmCore.em(gl, par; ekwargs=ekwargs, kwargs...)
+    embase(gl, par; ekwargs=ekwargs, mkwargs=mkwargs, kwargs...)
 end
 
 function EmCore.accelerate(par0::Par, par1::Par, par2::Par; minalpha=1, maxalpha=4)
