@@ -81,4 +81,27 @@ include("joint/em.jl")
 
 end
 
+module Joint2
+
+using Reexport
+
+using ..Utils
+using ..Types
+using ..Input
+using ..EmCore
+
+include("joint2/parameters.jl")
+include("joint2/emission.jl")
+include("joint2/forwardbackward.jl")
+# include("joint/posterior.jl")
+# include("joint/em.jl")
+
+@reexport using .Parameters
+@reexport using .Emission
+@reexport using .ForwardBackward
+# @reexport using .Posterior
+# @reexport using .Em
+
+end
+
 end
