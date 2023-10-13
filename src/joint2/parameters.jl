@@ -129,6 +129,12 @@ function clusterfreq!(h::Vec, par::ParSite)
     end
 end
 
+function clusterfreq(par::ParSite)
+    h = zeros(clusters(par))
+    clusterfreq!(h, par)
+    h
+end
+
 function clusterfreq!(h::Mat, par::ParInd)
     @inbounds for s in 1:sites(par)
         clusterfreq!(view(h, s, :), par[s])

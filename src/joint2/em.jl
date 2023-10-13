@@ -1,0 +1,140 @@
+module Em
+
+export em
+
+using Logging
+using Random
+
+using ..Utils
+using ..Input
+using ..Types
+using ..Parameters
+using ..ForwardBackward
+using ..Posterior
+using ..EmCore
+
+EmCore.workspacetype(::Type{<:Par}) = Workspace{Expect, Buf}
+
+struct Expect
+    clusterallele::Array{Float64, 3}
+    clusterancestryjump::Array{Float64, 3}
+    ancestry::Matrix{Float64}
+end
+
+function EmCore.create(::Type{Expect}, par::Par) 
+    (I, S, C, K) = size(par)
+    Expect(zeros(S, C, 2), zeros(S, C, K), zeros(I, K))
+end
+
+function EmCore.clear!(e::Expect)
+    e.clusterallele .= 0.0
+    e.clusterancestryjump .= 0.0
+    e.ancestry .= 0.0
+end
+
+struct ExpectInd
+    clusterallele::Array{Float64, 3}
+    clusterancestryjump::Array{Float64, 3}
+    ancestry::Matrix{Float64}
+end
+
+function EmCore.create(::Type{ExpectInd}, par::Par) 
+    (I, S, C, K) = size(par)
+    ExpectInd(zeros(S, C, 2), zeros(S, C, K), zeros(I, K))
+end
+
+function EmCore.clear!(e::ExpectInd)
+    e.clusterallele .= 0.0
+    e.clusterancestryjump .= 0.0
+    e.ancestry .= 0.0
+end
+
+struct Buf
+    ab::FwdBwd
+    h::Mat
+    expect::ExpectInd
+end
+
+function EmCore.create(::Type{Buf}, par::Par)
+    (I, S, C, K) = size(par)
+    Buf(zeros(FwdBwd, S, C), zeros(S, C), create(ExpectInd, par))
+end
+
+function EmCore.clear!(b::Buf)
+    clear!(b.expect)
+end
+
+function EmCore.estep!(buf::Buf, gl::GlVec, par::ParInd)
+    clusterfreq!(buf.h, par)
+    forwardbackward!(buf.ab, gl, buf.h, par)
+    clusteralleleexpect!(buf.expect.clusterallele, gl, buf.ab, par);
+    clusterancestryjumpexpect!(
+        buf.expect.clusterancestryjump, gl, buf.ab, buf.h, par
+    );
+    loglikelihood(buf.ab)
+end
+
+function add!(sum::Sum{Expect}, expect::ExpectInd, i::Integer)
+    sum.expect.clusterallele .+= expect.clusterallele
+    sum.expect.clusterancestryjump .+= expect.clusterancestryjump
+    sum.expect.ancestry[i, :] = sumdrop(expect.ancestry, dims=1)
+    sum.n += 1
+end
+
+function EmCore.estep!(ws::Workspace, gl::GlMat, par::Par; kwargs...)
+    (I, S, C, K) = size(par)
+    loglik = 0.0
+    lck = ReentrantLock()
+    @assert(length(ws.bufs) == Threads.nthreads())
+    Threads.@threads :static for i = 1:I
+        buf = ws.bufs[Threads.threadid()]
+        clear!(buf)
+        ll = estep!(buf, ind(gl, i), par[i]; kwargs...)
+        lock(lck) do
+            loglik += ll
+            add!(ws.sum, buf.expect, i)
+        end
+    end
+    loglik
+end
+
+function EmCore.mstep!(par::Par, sum::Sum{Expect}; fixedQ=false)
+    (I, S, C, K) = size(par)
+    @assert(isapprox(Base.sum(sum.expect.clusterallele), I * S))
+    par.P .= sum.expect.clusterallele[:, :, 2] ./ 
+        sumdrop(sum.expect.clusterallele, dims=3)
+    par.F .= sum.expect.clusterancestryjump
+    norm!(par.F, dims=(1, 3))
+    if !fixedQ
+        error("not implemented")
+        # par.Q .= sum.expect.ancestry
+        # norm!(par.Q, dims=1)
+    end
+    protect!(par)
+end
+
+function em(beagle::Beagle; C::Integer, K::Integer, initpar=nothing, seed=nothing, fixedQ=false, kwargs...)
+    (I, S) = size(beagle)
+    gl = joingl(beagle)
+
+    if !isnothing(initpar)
+        par = initpar
+    elseif !isnothing(seed)
+        Random.seed!(seed)
+        par = parinit(beagle, C=C, K=K)
+    end
+
+    ekwargs = Dict()
+    mkwargs = Dict(:fixedQ=>fixedQ)
+
+    embase(
+        gl,
+        par;
+        ekwargs=ekwargs,
+        mkwargs=mkwargs,
+        kwargs...
+    )
+end
+
+end
+
