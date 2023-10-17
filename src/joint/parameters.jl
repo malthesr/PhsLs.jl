@@ -1,16 +1,16 @@
 module Parameters
 
-export Par, ParInd, ParSite, parinit, protect!
+export Par, ParInd, ParSite, parinit, protect!, jumpclusterfreq, jumpclusterfreq!
 
+using ..Input
 using ..Utils
 using ..Types
 
-struct Par{A<:Arr3, M<:Mat, V<:Vec}
+struct Par{A<:Arr3, M<:Mat, N<:Mat, V<:Vec}
     P::M
     F::A
-    Q::M
+    Q::N
     er::V
-    et::V
 end
 
 struct ParInd{A<:Arr3, M<:Mat, V<:Vec, W<:Vec}
@@ -18,7 +18,6 @@ struct ParInd{A<:Arr3, M<:Mat, V<:Vec, W<:Vec}
     F::A
     Q::W
     er::V
-    et::V
 end
 
 struct ParSite{M<:Mat, V<:Vec}
@@ -26,7 +25,6 @@ struct ParSite{M<:Mat, V<:Vec}
     F::M
     Q::V
     er::Float64
-    et::Float64
 end
 
 function Base.getindex(par::Par, i::Integer)
@@ -35,7 +33,15 @@ function Base.getindex(par::Par, i::Integer)
         view(par.F, :, :, :),
         view(par.Q, i, :),
         view(par.er, :),
-        view(par.et, :),
+    )
+end
+
+function Base.getindex(par::Par, i::AbstractVector{<:Integer})
+    Par(
+        view(par.P, :, :),
+        view(par.F, :, :, :),
+        view(par.Q, i, :),
+        view(par.er, :),
     )
 end
 
@@ -45,7 +51,6 @@ function Base.getindex(par::ParInd, s::AbstractVector{<:Integer})
         view(par.F, s, :, :),
         view(par.Q, :),
         par.er[s],
-        par.et[s],
     )
 end
 
@@ -55,7 +60,6 @@ function Base.getindex(par::ParInd, s::Integer)
         view(par.F, s, :, :),
         view(par.Q, :),
         par.er[s],
-        par.et[s],
     )
 end
 
@@ -79,17 +83,14 @@ Types.eachsite(par::ParInd) = map(s -> par[s], 1:sites(par))
 
 function jumpinit(positions::AbstractVector{<:AbstractVector{<:Integer}})
     er = Float64[]
-    et = Float64[]
     for pos in positions
         d = diff(pos)
         append!(er, [1; exp.(-(d ./ 1e6))])
-        append!(et, [1; exp.(0.05 .* -(d ./ 1e6))])
     end
-    (er, et)
+    er
 end
 
-jumpinit(positions::AbstractVector{<:Integer}) =
-    jumpinit([positions])
+jumpinit(positions::AbstractVector{<:Integer}) = jumpinit([positions])
 
 function parinit(I::Integer, S::Integer, C::Integer, K::Integer, positions)
     P = rand(Float64, (S, C))
@@ -97,18 +98,54 @@ function parinit(I::Integer, S::Integer, C::Integer, K::Integer, positions)
     norm!(F, dims=(1, 3))
     Q = rand(Float64, (I, K))
     norm!(Q, dims=1)
-    (er, et) = jumpinit(positions)
-    Par(P, F, Q, er, et)
+    er = jumpinit(positions)
+    Par(P, F, Q, er)
 end
 
-function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5)
-    clamp!(par.P, minP, 1.0 - minP)
+function parinit(beagle::Beagle; C::Integer, K::Integer)
+    I, S = size(beagle)
+    positions = [chr.pos for chr in beagle.chrs]
+    parinit(I, S, C, K, positions)
+end
 
+function protect!(par::Par; minP=1e-5, minF=1e-5, minQ=1e-5, miner=0.1, maxer=exp(-1e-9))
+    clamp!(par.P, minP, 1.0 - minP)
     clamp!(par.F, minF, 1.0 - minF)
     norm!(par.F, dims=(1, 3))
-
     clamp!(par.Q, minQ, 1.0 - minQ)
     norm!(par.Q, dims=1)
+    clamp!(par.er, miner, maxer)
+    par.er[1] = 0
+end
+
+function jumpclusterfreq!(h::Vec, par::ParSite)
+    C, K = size(par)
+    (; P, F, Q, er) = par
+    @inbounds for z in zs(C)
+        h[z] = 0
+        for y in ys(K)
+            h[z] += Q[y] * F[z, y]
+        end
+    end
+end
+
+function jumpclusterfreq(par::ParSite)
+    h = zeros(clusters(par))
+    clusterfreq!(h, par)
+    h
+end
+
+function jumpclusterfreq!(h::Mat, par::ParInd)
+    @inbounds for s in 1:sites(par)
+        jumpclusterfreq!(view(h, s, :), par[s])
+    end
+end
+
+function jumpclusterfreq(par::ParInd)
+    S, C, K = size(par)
+    h = zeros(S, C)
+    jumpclusterfreq!(h, par)
+    h
 end
 
 end

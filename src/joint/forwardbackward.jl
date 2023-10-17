@@ -7,231 +7,165 @@ using ..Types
 using ..Parameters
 using ..Emission
 
-struct FwdBwd{A<:Arr5, V<:Vec}
+struct FwdBwd{A<:Arr3, V<:Vec}
     fwd::A
     bwd::A
     scaling::V
 end
 
-function Base.zeros(::Type{FwdBwd}, S::Integer, C::Integer, K::Integer)
-    FwdBwd(zeros(S, C, C, K, K), zeros(S, C, C, K, K), zeros(S))
+function Base.zeros(::Type{FwdBwd}, S::Integer, C::Integer)
+    FwdBwd(zeros(S, C, C), zeros(S, C, C), zeros(S))
 end
 
-struct FwdBwdSite{A<:Arr4}
-    fwd::A
-    bwd::A
+struct FwdBwdSite{M<:Mat}
+    fwd::M
+    bwd::M
     scaling::Float64
 end
 
-@inline Base.getindex(ab::FwdBwd, s::Integer) =
+Base.size(ab::FwdBwd) = size(ab.fwd)
+function Base.getindex(ab::FwdBwd, s::Integer)
     FwdBwdSite(
-        view(ab.fwd, s, :, :, :, :),
-        view(ab.bwd, s, :, :, :, :),
+        view(ab.fwd, s, :, :), 
+        view(ab.bwd, s, :, :), 
         ab.scaling[s]
     )
+end
 
-@inline Types.sites(ab::FwdBwd) = length(scaling(ab.scaling))
-@inline Types.clusters(ab::FwdBwd) = size(ab.fwd, 2)
-@inline Types.populations(ab::FwdBwd) = size(ab.fwd, 4)
-@inline Types.eachsite(ab::FwdBwd) = map(s -> ab[s], 1:sites(ab))
+Types.sites(ab::FwdBwd) = length(ab.scaling)
+Types.clusters(ab::FwdBwd) = size(ab.fwd, 2)
 
-@inline Types.clusters(ab::FwdBwdSite) = size(ab.fwd, 1)
-@inline Types.populations(ab::FwdBwdSite) = size(ab.fwd, 3)
+Types.eachsite(ab::FwdBwd) = map(s -> ab[s], 1:sites(ab))
+Types.clusters(ab::FwdBwdSite) = size(ab.fwd, 1)
 
 loglikelihood(ab::FwdBwd) = reduce(+, log.(ab.scaling))
 
-function forwardbackward!(ab::FwdBwd, gl::GlVec, par::ParInd)
-    forward!(ab.fwd, ab.scaling, gl, par)
-    backward!(ab.bwd, gl, ab.scaling, par)
+function forwardbackward!(ab::FwdBwd, gl::GlVec, h::Mat, par::ParInd)
+    forward!(ab.fwd, ab.scaling, gl, h, par)
+    backward!(ab.bwd, gl, ab.scaling, h, par)
 end
 
-function forwardbackward(gl::GlVec, par::ParInd)
-    c, a = forward(gl, par)
-    b = backward(gl, c, par)
-    FwdBwd(a, b, c)
+function forwardbackward(gl::GlVec, h::Mat, par::ParInd)
+    (S, C, K) = size(par)
+    ab = zeros(FwdBwd, S, C)
+    forwardbackward!(ab, gl, h, par)
+    ab
 end
 
-mutable struct FwdSums{A<:Arr3, M<:Mat, V<:Vec}
-    z::A
-    zz::M
-    zy::M
-    zzy::V
+mutable struct FwdSums{V<:Vec}
+    z::V
 end
 
-function Base.zeros(::Type{FwdSums}, C::Integer, K::Integer)
-    FwdSums(
-        zeros(C, K, K),
-        zeros(K, K),
-        zeros(C, K),
-        zeros(K),
-    )
+function Base.zeros(::Type{FwdSums}, C::Integer)
+    FwdSums(zeros(C))
 end
 
-@inline function forwardsums!(sums::FwdSums, a::Arr4)
-    (C, C, K, K) = size(a)
-    sums.z .= 0.
-    sums.zz .= 0.
-    sums.zy .= 0.
-    sums.zzy .= 0.
+@inline function forwardsums!(sums::FwdSums, a::Mat)
+    (C, C) = size(a)
+    sums.z .= 0.0
     @inbounds for (z1, z2) in zzs(C)
-        for (y1, y2) in yys(K)
-            v = a[z1, z2, y1, y2]
-            sums.z[z2, y1, y2] += v
-            sums.zz[y1, y2] += v
-            sums.zy[z1, y1] += v
-            sums.zzy[y1] += v
-        end
+        sums.z[z1] += a[z1, z2]
     end
 end
 
-function forward!(a::Arr4, prev::Arr4, prevsums::FwdSums, gl::Gl, par::ParSite)
-    (C, K) = size(par)
-    (; P, F, Q, er, et) = par
-    @inbounds for (z1, z2) in zzs(C)
-        emit = emission(gl, Z(z1, z2), P)
-        for (y1, y2) in yys(K)
-            q1, q2, f1, f2 = (Q[y1], Q[y2], F[z1, y1], F[z2, y2])
-            staystay = et^2 * (
-                er^2 * prev[z1, z2, y1, y2] +
-                er * (1 - er) * (
-                    f2 * prevsums.z[z1, y2, y1] +
-                    f1 * prevsums.z[z2, y1, y2]
-                ) +
-                (1 - er)^2 * f1 * f2 * prevsums.zz[y1, y2]
-            )
-            stayjump = et * (1 - et) * (
-                q2 * f2 * (
-                    er * prevsums.zy[z1, y1] +
-                    (1 - er) * f1 * prevsums.zzy[y1]
-                ) +
-                q1 * f1 * (
-                    er * prevsums.zy[z2, y2] +
-                    (1 - er) * f2 * prevsums.zzy[y2]
-                )
-            )
-            jumpjump = (1 - et)^2 * q1 * q2 * f1 * f2
-            a[z1, z2, y1, y2] = emit * (staystay + stayjump + jumpjump)
-        end
+function forwardinit!(a::Mat, gl::Gl, h::Vec, par::ParSite)
+    @inbounds for (z1, z2) in zzs(clusters(par))
+        emit = emission(gl, Z(z1, z2), par.P)
+        a[z1, z2] = emit * h[z1] * h[z2]
     end
     cnorm!(a)
 end
 
-function forwardinit!(a::Arr4, gl::Gl, par::ParSite)
-    (C, K) = size(par)
-    (; P, F, Q, er, et) = par
+function forward!(a::Mat, prev::Mat, prevsums::FwdSums, gl::Gl, h::Vec, par::ParSite)
+    C = clusters(par)
+    er = par.er
     @inbounds for (z1, z2) in zzs(C)
         emit = emission(gl, Z(z1, z2), par.P)
-        for (y1, y2) in yys(K)
-            q1, q2, f1, f2 = (Q[y1], Q[y2], F[z1, y1], F[z2, y2])
-            a[z1, z2, y1, y2] = emit * f1 * f2 * q1 * q2
-        end
+        a[z1, z2] = emit * (
+            er^2 * prev[z1, z2] + 
+            er * (1 - er) * (h[z1] * prevsums.z[z2] + h[z2] * prevsums.z[z1]) +
+            (1 - er)^2 * h[z1] * h[z2]
+        )
     end
     cnorm!(a)
 end
 
-function forward!(a::Arr5, c::Vec, gl::GlVec, par::ParInd)
+function forward!(a::Arr3, c::Vec, gl::GlVec, h::Mat, par::ParInd)
     (S, C, K) = size(par)
-    c[1] = forwardinit!(view(a, 1, :, :, :, :), gl[1], par[1])
-    prevsums = zeros(FwdSums, C, K)
-    @inbounds for s in 2:S
-        curr = view(a, s, :, :, :, :)
-        prev = view(a, s - 1, :, :, :, :)
+    c[1] = forwardinit!(view(a, 1, :, :), gl[1], h[1, :], par[1])
+    prevsums = zeros(FwdSums, C)
+    for s in 2:S
+        curr = view(a, s, :, :)
+        prev = view(a, s - 1, :, :)
         forwardsums!(prevsums, prev)
-        c[s] = forward!(curr, prev, prevsums, gl[s], par[s])
+        c[s] = forward!(curr, prev, prevsums, gl[s], h[s, :], par[s])
     end
 end
 
-function forward(gl::GlVec, par::ParInd)
+function forward(gl::GlVec, h::Mat, par::ParInd)
     (S, C, K) = size(par)
-    a = zeros(S, C, C, K, K)
-    c = zeros(S)
-    forward!(a, c, gl, par)
+    a = zeros(Float64, S, C, C)
+    c = zeros(Float64, S)
+    forward!(a, c, gl, h, par)
     (c, a)
 end
 
-mutable struct BwdSums{B<:Arr4, A<:Arr3, M<:Mat, V<:Vec}
-    bemit::B
-    z::A
-    zz::M
-    zy::M
-    zzy::V
-    zzyy::Float64
+mutable struct BwdSums{M<:Mat, V<:Vec}
+    bemit::M
+    z::V
+    zz::Float64
 end
 
-function Base.zeros(::Type{BwdSums}, C::Integer, K::Integer)
+function Base.zeros(::Type{BwdSums}, C::Integer)
     BwdSums(
-        zeros(C, C, K, K),
-        zeros(C, K, K),
-        zeros(K, K),
-        zeros(C, K),
-        zeros(K),
+        zeros(C, C),
+        zeros(C),
         0.0,
     )
 end
 
-@inline function backwardsums!(sums::BwdSums, b::Arr4, gl::Gl, par::ParSite)
-    (; P, F, Q, er, et) = par
-    (C, K) = size(par)
-    sums.bemit .= 0.
-    sums.z .= 0.
-    sums.zz .= 0.
-    sums.zy .= 0.
-    sums.zzy .= 0.
-    sums.zzyy = 0.
+@inline function backwardsums!(sums::BwdSums, b::Mat, gl::Gl, h::Vec, par::ParSite)
+    C = clusters(par)
+    sums.bemit .= 0.0
+    sums.z .= 0.0
+    sums.zz = 0.0
     @inbounds for (z1, z2) in zzs(C)
-        emit = emission(gl, Z(z1, z2), P)
-        for (y1, y2) in yys(K)
-            q1, q2, f1, f2 = (Q[y1], Q[y2], F[z1, y1], F[z2, y2])
-            bemit = emit * b[z1, z2, y1, y2]
-            sums.bemit[z1, z2, y1, y2] += bemit
-            sums.z[z1, y1, y2] += bemit * f2
-            sums.zz[y1, y2] += bemit * f1 * f2
-            sums.zy[z1, y1] += bemit * q2 * f2
-            sums.zzy[y1] += bemit * q2 * f1 * f2
-            sums.zzyy += bemit * q1 * q2 * f1 * f2
-        end
+        emit = emission(gl, Z(z1, z2), par.P)
+        bemit = emit * b[z1, z2]
+        sums.bemit[z1, z2] += bemit
+        sums.z[z1] += bemit * h[z2]
+        sums.zz += bemit * h[z1] * h[z2]
     end
 end
 
-function backward!(b::Arr4, nextsums::BwdSums, c::Float64, par::ParSite)
-    (C, K) = size(par)
-    (; P, F, Q, er, et) = par
+function backward!(b::Mat, nextsums::BwdSums, c::Float64, par::ParSite)
+    C = clusters(par)
+    er = par.er
     @inbounds for (z1, z2) in zzs(C)
-        for (y1, y2) in yys(K)
-            staystay = et^2 * (
-                er^2 * nextsums.bemit[z1, z2, y1, y2] + 
-                er * (1 - er) * (
-                    nextsums.z[z1, y1, y2] + 
-                    nextsums.z[z2, y2, y1]
-                ) +
-                (1 - er)^2 * nextsums.zz[y1, y2]
-            )
-            stayjump = et * (1 - et) * (
-                er * (nextsums.zy[z1, y1] + nextsums.zy[z2, y2]) +
-                (1 - er) * (nextsums.zzy[y1] + nextsums.zzy[y2])
-            )
-            jumpjump = (1 - et)^2 * nextsums.zzyy
-            b[z1, z2, y1, y2] = (staystay +  stayjump + jumpjump) / c
-        end
+        b[z1, z2] = (
+            er^2 * nextsums.bemit[z1, z2] +
+            er * (1 - er) * (nextsums.z[z1] + nextsums.z[z2]) +
+            (1 - er)^2 * nextsums.zz
+        ) / c
     end
 end
 
-function backward!(b::Arr5, gl::GlVec, c::Vec, par::ParInd)
+function backward!(b::Arr3, gl::GlVec, c::Vec, h::Mat, par::ParInd)
     (S, C, K) = size(par)
-    b[S, :, :, :, :] .= 1
-    nextsums = zeros(BwdSums, C, K)
+    b[S, :, :] .= 1.0
+    nextsums = zeros(BwdSums, C)
     for s in reverse(2:S)
-        curr = view(b, s - 1, :, :, :, :)
-        next = view(b, s, :, :, :, :)
-        backwardsums!(nextsums, next, gl[s], par[s])
+        curr = view(b, s - 1, :, :)
+        next = view(b, s, :, :)
+        backwardsums!(nextsums, next, gl[s], h[s, :], par[s])
         backward!(curr, nextsums, c[s], par[s])
     end
 end
 
-function backward(gl::GlVec, c::Vec, par::ParInd)
+function backward(gl::GlVec, c::Vec, h::Mat, par::ParInd)
     (S, C, K) = size(par)
-    b = zeros(S, C, C, K, K)
-    backward!(b, gl, c, par)
+    b = zeros(Float64, S, C, C)
+    backward!(b, gl, c, h, par)
     b
 end
 

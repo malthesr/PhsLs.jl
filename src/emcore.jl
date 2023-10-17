@@ -78,6 +78,7 @@ function embase(input,
             ekwargs=Dict(),
             mkwargs=Dict(),
             accelargs=Dict())
+    par = deepcopy(par)
     oldloglik = -Inf
     change = Inf
     iter = 0

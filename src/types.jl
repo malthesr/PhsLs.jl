@@ -4,7 +4,7 @@ import StaticArrays: FieldVector, SMatrix
 import Base.Iterators: product
 
 export Vec, Mat, Arr3, Arr4, Arr5, Allele, ref, alt, G, gs, Gl, GlVec, GlMat,
-    Cluster, Z, zs, zzs, Ancestry, Y, ys, yys, Jump, J, js,
+    Cluster, Z, zs, zzs, Ancestry, Y, ys, yys, Jump, jump, stay, J, js,
     inds, sites, clusters, populations, site, ind, eachsite, eachind
 
 const Vec = StridedVector{Float64}
